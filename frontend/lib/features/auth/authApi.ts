@@ -1,0 +1,81 @@
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import type { RootState } from '@/lib/store';
+import type { User } from './authSlice';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+export interface SignupRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface SignupResponse {
+  message: string;
+  user: User;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  user: User;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
+export const authApi = createApi({
+  reducerPath: 'authApi',
+  baseQuery: fetchBaseQuery({
+    baseUrl: `${API_URL}/api/v1/auth`,
+    prepareHeaders: (headers, { getState }) => {
+      // Get token from Redux state
+      const token = (getState() as RootState).auth.token;
+
+      // If we have a token, add it to headers
+      if (token) {
+        headers.set('authorization', `Bearer ${token}`);
+      }
+
+      return headers;
+    },
+  }),
+  endpoints: (builder) => ({
+    signup: builder.mutation<SignupResponse, SignupRequest>({
+      query: (credentials) => ({
+        url: '/signup',
+        method: 'POST',
+        body: credentials,
+      }),
+    }),
+    login: builder.mutation<TokenResponse, LoginRequest>({
+      query: (credentials) => ({
+        url: '/login',
+        method: 'POST',
+        body: credentials,
+      }),
+    }),
+    verify: builder.query<User, void>({
+      query: () => '/verify',
+    }),
+    logout: builder.mutation<MessageResponse, void>({
+      query: () => ({
+        url: '/logout',
+        method: 'POST',
+      }),
+    }),
+  }),
+});
+
+export const {
+  useSignupMutation,
+  useLoginMutation,
+  useVerifyQuery,
+  useLogoutMutation,
+} = authApi;
