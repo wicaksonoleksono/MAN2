@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config.database import init_db, close_db
-from app.routers import auth
+from app.routers import auth, users, absensi
+from app.config.settings import settings
 
 
 @asynccontextmanager
@@ -16,7 +17,7 @@ async def lifespan(app: FastAPI):
         - Close database connections
     """
     # Startup
-    await init_db()
+    await init_db(drop_existing=settings.DEV_MODE)
     yield
     # Shutdown
     await close_db()
@@ -34,8 +35,8 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",  # Next.js dev server
-        "http://frontend:3000",   # Docker frontend service
+        "http://localhost:4923",  # Next.js dev server
+        "http://frontend:3000",   # Docker frontend service (internal)
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -44,6 +45,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth.router)
+app.include_router(users.router)
+app.include_router(absensi.router)
 
 
 @app.get("/", tags=["Root"])

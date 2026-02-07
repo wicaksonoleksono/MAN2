@@ -62,10 +62,28 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-async def init_db():
-    """Initialize database tables (run on startup)"""
+async def init_db(drop_existing: bool = False):
+    """
+    Initialize database tables (run on startup)
+
+    Args:
+        drop_existing: If True, drops all tables before creating (DEV ONLY!)
+    """
+    # Import all models to register them with Base.metadata
+    from app.models.user import User  # noqa: F401
+    from app.models.siswa_profile import SiswaProfile  # noqa: F401
+    from app.models.guru_profile import GuruProfile  # noqa: F401
+    from app.models.absensi import Absensi  # noqa: F401
+    from app.models.izin_keluar import IzinKeluar  # noqa: F401
+
     async with engine.begin() as conn:
+        if drop_existing:
+            print("WARNING: Dropping all existing tables...")
+            await conn.run_sync(Base.metadata.drop_all)
+
+        print("Creating/updating database tables...")
         await conn.run_sync(Base.metadata.create_all)
+        print("Database initialized successfully")
 
 
 async def close_db():

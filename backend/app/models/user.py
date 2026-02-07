@@ -1,26 +1,32 @@
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 from typing import Optional
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Boolean, DateTime, UUID as SQLAlchemyUUID, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import String, Boolean, DateTime, Enum as SQLAlchemyEnum, UUID as SQLAlchemyUUID, func
+from passlib.context import CryptContext
 from app.config.database import Base
+from app.config.settings import settings
+from app.enums import UserType
+
+
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__rounds=settings.BCRYPT_ROUNDS
+)
 
 
 def utc_now() -> datetime:
-    """Get current UTC time with timezone awareness"""
     return datetime.now(timezone.utc)
 
 
 class User(Base):
     """
-    User database model with username/password authentication
-
-    Authentication via username and password (hashed with bcrypt)
+    Auth-only user model. Profile data lives in siswa_profile / guru_profile.
     """
 
     __tablename__ = "users"
 
-    # Primary key
     user_id: Mapped[UUID] = mapped_column(
         SQLAlchemyUUID(as_uuid=True),
         primary_key=True,
@@ -28,7 +34,6 @@ class User(Base):
         nullable=False
     )
 
-    # Username - unique, 3-100 chars, alphanumeric + underscore
     username: Mapped[str] = mapped_column(
         String(100),
         unique=True,
@@ -36,13 +41,16 @@ class User(Base):
         index=True
     )
 
-    # Password hash - bcrypt hashed password (NEVER store plain password)
+    user_type: Mapped[UserType] = mapped_column(
+        SQLAlchemyEnum(UserType, values_callable=lambda x: [e.value for e in x]),
+        nullable=False
+    )
+
     password_hash: Mapped[str] = mapped_column(
         String(255),
         nullable=False
     )
 
-    # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -55,23 +63,29 @@ class User(Base):
         default=None
     )
 
-    # Status
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=True
     )
 
+    # Relationships
+    siswa_profile: Mapped[Optional["SiswaProfile"]] = relationship(back_populates="user")
+    guru_profile: Mapped[Optional["GuruProfile"]] = relationship(back_populates="user")
+
+    def set_password(self, plain_password: str) -> None:
+        self.password_hash = pwd_context.hash(plain_password)
+
+    def verify_password(self, plain_password: str) -> bool:
+        return pwd_context.verify(plain_password, self.password_hash)
+
     def update_last_login(self) -> None:
-        """Update last login timestamp"""
         self.last_login = utc_now()
 
     def deactivate(self) -> None:
-        """Deactivate user account"""
         self.is_active = False
 
     def activate(self) -> None:
-        """Activate user account"""
         self.is_active = True
 
     def __repr__(self) -> str:

@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.database import get_db
+from app.dependencies import bearer_scheme
 from app.services.auth_service import AuthService
 from app.dto.auth.auth_request import SignupRequestDTO, LoginRequestDTO
 from app.dto.auth.auth_response import (
@@ -9,7 +11,6 @@ from app.dto.auth.auth_response import (
     SignupResponseDTO,
     MessageResponseDTO
 )
-
 
 router = APIRouter(
     prefix="/api/v1/auth",
@@ -69,20 +70,11 @@ async def login(
     description="Verify JWT token and get user information"
 )
 async def verify(
-    authorization: str = Header(..., description="Bearer token"),
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db)
 ) -> UserResponseDTO:
-    """
-    Verify JWT token and get user information
-
-    - **Authorization header**: "Bearer {your_jwt_token}"
-
-    Returns user information if token is valid.
-    """
-    # Extract token from "Bearer <token>"
-    token = authorization.replace("Bearer ", "").strip()
     service = AuthService(db)
-    return await service.verify_token(token)
+    return await service.verify_token(credentials.credentials)
 
 
 @router.post(
@@ -92,18 +84,8 @@ async def verify(
     description="Logout user (invalidate token on client side)"
 )
 async def logout(
-    authorization: str = Header(..., description="Bearer token"),
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db)
 ) -> MessageResponseDTO:
-    """
-    Logout user
-
-    - **Authorization header**: "Bearer {your_jwt_token}"
-
-    Note: This is a basic implementation. Client should delete the token.
-    For production, consider implementing Redis-based token blacklist.
-    """
-    # Extract token from "Bearer <token>"
-    token = authorization.replace("Bearer ", "").strip()
     service = AuthService(db)
-    return await service.logout(token)
+    return await service.logout(credentials.credentials)

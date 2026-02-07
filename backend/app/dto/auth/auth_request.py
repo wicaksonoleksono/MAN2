@@ -1,9 +1,22 @@
 from pydantic import BaseModel, Field, field_validator
+from app.enums import UserType
 import re
 
 
 class SignupRequestDTO(BaseModel):
     """Request DTO for user signup"""
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "username": "ahmad_siswa",
+                    "password": "Password123",
+                    "user_type": "Siswa",
+                }
+            ]
+        }
+    }
 
     username: str = Field(
         ...,
@@ -14,7 +27,12 @@ class SignupRequestDTO(BaseModel):
     password: str = Field(
         ...,
         min_length=8,
-        description="Password (min 8 chars, 1 uppercase, 1 lowercase, 1 digit)"
+        max_length=72,
+        description="Password (8-72 chars, 1 uppercase, 1 lowercase, 1 digit)"
+    )
+    user_type: UserType = Field(
+        ...,
+        description="User type (Siswa, Guru, Admin)"
     )
 
     @field_validator("username")
@@ -51,6 +69,16 @@ class SignupRequestDTO(BaseModel):
 
 class LoginRequestDTO(BaseModel):
     """Request DTO for user login"""
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "username": "ahmad_siswa",
+                    "password": "Password123",
+                }
+            ]
+        }
+    }
 
     username: str = Field(..., description="Username")
     password: str = Field(..., description="Password")

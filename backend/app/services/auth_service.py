@@ -4,7 +4,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.utils.jwt_utils import JWTManager
-from app.utils.password_utils import PasswordManager
 from app.dto.auth.auth_request import SignupRequestDTO, LoginRequestDTO
 from app.dto.auth.auth_response import (
     UserResponseDTO,
@@ -18,29 +17,19 @@ class AuthService:
     """
     Authentication service for username/password auth
 
-    Follows CLAUDE.md principles:
-    - Raises HTTPException for all errors (never returns None/Optional)
-    - Uses Depends(ServiceClass) NOT Depends(ServiceClass())
-    - Type hints everywhere
+    Password hashing/verification is handled by the User model.
+
+    Raises:
+        HTTPException: 400, 401, 403, 404, 500
     """
 
     def __init__(
         self,
         db: AsyncSession,
         jwt_manager: JWTManager | None = None,
-        password_manager: PasswordManager | None = None
     ):
-        """
-        Initialize AuthService with database session
-
-        Args:
-            db: Async database session
-            jwt_manager: JWT token manager (creates new instance if not provided)
-            password_manager: Password manager (creates new instance if not provided)
-        """
         self.db = db
         self.jwt_manager = jwt_manager or JWTManager()
-        self.password_manager = password_manager or PasswordManager()
 
     async def signup(self, request: SignupRequestDTO) -> SignupResponseDTO:
         """
@@ -69,14 +58,11 @@ class AuthService:
                     detail=f"Username '{request.username}' is already taken"
                 )
 
-            # Hash password
-            password_hash = self.password_manager.hash_password(request.password)
-
-            # Create new user
             user = User(
                 username=request.username,
-                password_hash=password_hash
+                user_type=request.user_type,
             )
+            user.set_password(request.password)
 
             # Save to database
             self.db.add(user)
@@ -132,8 +118,7 @@ class AuthService:
                 detail="Invalid username or password"
             )
 
-        # Verify password
-        if not self.password_manager.verify_password(request.password, user.password_hash):
+        if not user.verify_password(request.password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid username or password"

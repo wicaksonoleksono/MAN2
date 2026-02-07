@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres-db:
@@ -10,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-simandaya_dev_password}
       POSTGRES_DB: ${DB_NAME:-simandaya_db}
     ports:
-      - "${POSTGRES_EXTERNAL_PORT:-5432}:5432"
+      - "${POSTGRES_EXTERNAL_PORT:-4623}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -49,7 +47,7 @@ services:
       # Password Hashing
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
     ports:
-      - "${BACKEND_EXTERNAL_PORT:-8000}:8000"
+      - "${BACKEND_EXTERNAL_PORT:-2385}:${APP_PORT:-2385}"
     depends_on:
       postgres-db:
         condition: service_healthy
@@ -57,27 +55,29 @@ services:
       - simandaya-network
     volumes:
       - ./backend/app:/app/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port ${APP_PORT:-2385} --reload
 
   # Next.js Frontend
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: ${FRONTEND_TARGET:-builder}
     container_name: simandaya-frontend
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_EXTERNAL_PORT:-8000}
+      NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_EXTERNAL_PORT:-2385}
+      NODE_ENV: ${NODE_ENV:-development}
     ports:
-      - "${FRONTEND_EXTERNAL_PORT:-3000}:3000"
+      - "${FRONTEND_EXTERNAL_PORT:-4923}:3000"
     depends_on:
       - backend
     networks:
       - simandaya-network
     volumes:
-      - ./frontend/app:/app/app
-      - ./frontend/lib:/app/lib
+      - ./frontend:/app
       - /app/node_modules
       - /app/.next
+    command: sh -c "pnpm install && pnpm dev"
 
 networks:
   simandaya-network:
