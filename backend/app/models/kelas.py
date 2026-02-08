@@ -1,0 +1,43 @@
+from uuid import UUID, uuid4
+from typing import Optional
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import (
+    String, Integer, Enum as SQLAlchemyEnum,
+    UUID as SQLAlchemyUUID, ForeignKey, UniqueConstraint
+)
+from app.config.database import Base
+from app.enums import TingkatKelas
+
+
+class Kelas(Base):
+    __tablename__ = "kelas"
+    __table_args__ = (
+        UniqueConstraint("tahun_ajaran_id", "nama_kelas", name="uq_kelas_tahun_nama"),
+    )
+
+    kelas_id: Mapped[UUID] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True), primary_key=True, default=uuid4, nullable=False
+    )
+    tahun_ajaran_id: Mapped[UUID] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        ForeignKey("tahun_ajaran.tahun_ajaran_id", ondelete="CASCADE"),
+        nullable=False
+    )
+    nama_kelas: Mapped[str] = mapped_column(String(50), nullable=False)
+    tingkat: Mapped[TingkatKelas] = mapped_column(
+        SQLAlchemyEnum(TingkatKelas, values_callable=lambda x: [e.value for e in x]),
+        nullable=False
+    )
+    jurusan: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    wali_kelas_id: Mapped[Optional[UUID]] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        ForeignKey("users.user_id", ondelete="SET NULL"),
+        nullable=True
+    )
+    kapasitas: Mapped[int] = mapped_column(Integer, nullable=False, default=36)
+
+    tahun_ajaran: Mapped["TahunAjaran"] = relationship()
+    wali_kelas: Mapped[Optional["User"]] = relationship()
+
+    def __repr__(self) -> str:
+        return f"Kelas(nama={self.nama_kelas}, tingkat={self.tingkat})"

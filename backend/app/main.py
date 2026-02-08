@@ -2,7 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config.database import init_db, close_db
-from app.routers import auth, users, absensi
+from app.routers import (
+    auth, users, absensi,
+    tahun_ajaran, semester, kalender, mapel, slot_waktu,
+    kelas, jadwal,
+)
 from app.config.settings import settings
 
 
@@ -47,6 +51,13 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(absensi.router)
+app.include_router(tahun_ajaran.router)
+app.include_router(semester.router)
+app.include_router(kalender.router)
+app.include_router(mapel.router)
+app.include_router(slot_waktu.router)
+app.include_router(kelas.router)
+app.include_router(jadwal.router)
 
 
 @app.get("/", tags=["Root"])

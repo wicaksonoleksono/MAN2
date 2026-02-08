@@ -1,0 +1,45 @@
+from typing import Optional
+from pydantic import BaseModel, Field
+from uuid import UUID
+from app.enums import TingkatKelas
+
+
+class CreateKelasDTO(BaseModel):
+    tahun_ajaran_id: UUID = Field(...)
+    nama_kelas: str = Field(..., min_length=1, max_length=50, description="e.g. X-A")
+    tingkat: TingkatKelas = Field(...)
+    jurusan: Optional[str] = Field(default=None, max_length=50)
+    wali_kelas_id: Optional[UUID] = None
+    kapasitas: int = Field(default=36, ge=1, le=100)
+
+
+class UpdateKelasDTO(BaseModel):
+    nama_kelas: Optional[str] = Field(default=None, max_length=50)
+    tingkat: Optional[TingkatKelas] = None
+    jurusan: Optional[str] = Field(default=None, max_length=50)
+    wali_kelas_id: Optional[UUID] = None
+    kapasitas: Optional[int] = Field(default=None, ge=1, le=100)
+
+
+class KelasResponseDTO(BaseModel):
+    kelas_id: UUID
+    tahun_ajaran_id: UUID
+    nama_kelas: str
+    tingkat: TingkatKelas
+    jurusan: Optional[str]
+    wali_kelas_id: Optional[UUID]
+    kapasitas: int
+
+
+class AssignSiswaDTO(BaseModel):
+    user_id: UUID = Field(..., description="Student user_id to assign")
+
+
+class SiswaKelasResponseDTO(BaseModel):
+    siswa_kelas_id: UUID
+    kelas_id: UUID
+    user_id: UUID
+
+
+class MessageResponseDTO(BaseModel):
+    message: str

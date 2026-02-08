@@ -1,0 +1,21 @@
+from pydantic import BaseModel, Field
+from uuid import UUID
+
+
+class CreateGuruMapelDTO(BaseModel):
+    user_id: UUID = Field(..., description="Guru user_id")
+    mapel_id: UUID = Field(..., description="Mata pelajaran ID")
+    kelas_id: UUID = Field(..., description="Kelas ID")
+    tahun_ajaran_id: UUID = Field(..., description="Academic year ID")
+
+
+class GuruMapelResponseDTO(BaseModel):
+    guru_mapel_id: UUID
+    user_id: UUID
+    mapel_id: UUID
+    kelas_id: UUID
+    tahun_ajaran_id: UUID
+
+
+class MessageResponseDTO(BaseModel):
+    message: str
