@@ -84,6 +84,10 @@ async def init_db(drop_existing: bool = False):
     from app.models.siswa_kelas import SiswaKelas  # noqa: F401
     from app.models.guru_mapel import GuruMapel  # noqa: F401
     from app.models.jadwal import Jadwal  # noqa: F401
+    from app.models.tugas import Tugas  # noqa: F401
+    from app.models.nilai import Nilai  # noqa: F401
+    from app.models.bobot_penilaian import BobotPenilaian  # noqa: F401
+    from app.models.rapor import Rapor, RaporNilai  # noqa: F401
 
     async with engine.begin() as conn:
         if drop_existing:

@@ -5,22 +5,22 @@ help:
 	@echo "================="
 	@echo ""
 	@echo "  make install   - Install dependencies with pnpm"
-	@echo "  make dev       - Run development server"
-	@echo "  make build     - Build for production"
-	@echo "  make start     - Start production server"
-	@echo "  make test      - Run tests"
-	@echo "  make lint      - Run ESLint"
-	@echo "  make format    - Format code with Prettier"
-	@echo "  make clean     - Remove node_modules and build artifacts"
+	@echo "  make dev-frontend-up - Run development server with env vars"
+	@echo "  make build           - Build for production"
+	@echo "  make start           - Start production server"
+	@echo "  make test            - Run tests"
+	@echo "  make lint            - Run ESLint"
+	@echo "  make format          - Format code with Prettier"
+	@echo "  make clean           - Remove node_modules and build artifacts"
 
 install:
 	@echo "Installing dependencies..."
 	pnpm install
 	@echo "Installation complete!"
 
-dev:
+dev-frontend-up:
 	@echo "Starting development server..."
-	pnpm dev
+	export $$(grep -v '^#' ../.env | xargs) && PORT=$$FRONTEND_EXTERNAL_PORT pnpm dev
 
 build:
 	@echo "Building for production..."

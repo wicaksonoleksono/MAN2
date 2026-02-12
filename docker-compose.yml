@@ -3,6 +3,7 @@ services:
   postgres-db:
     image: postgres:16-alpine
     container_name: simandaya-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-simandaya}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-simandaya_dev_password}
@@ -14,7 +15,7 @@ services:
     networks:
       - simandaya-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-simandaya}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-simandaya}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,26 +26,21 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: simandaya-backend
+    restart: unless-stopped
     environment:
-      # Application
       ENVIRONMENT: ${ENVIRONMENT:-development}
       APP_HOST: ${APP_HOST:-0.0.0.0}
-      APP_PORT: ${APP_PORT:-8000}
+      APP_PORT: ${APP_PORT:-2385}
       APP_RELOAD: ${APP_RELOAD:-true}
-
-      # Database
+      DEV_MODE: ${DEV_MODE:-false}
       DB_USER: ${DB_USER:-simandaya}
       DB_PASSWORD: ${DB_PASSWORD:-simandaya_dev_password}
       DB_NAME: ${DB_NAME:-simandaya_db}
       DB_HOST: postgres-db
       DB_PORT: 5432
-
-      # JWT
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-super-secret-jwt-key-minimum-32-characters}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
-
-      # Password Hashing
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
     ports:
       - "${BACKEND_EXTERNAL_PORT:-2385}:${APP_PORT:-2385}"
@@ -55,18 +51,28 @@ services:
       - simandaya-network
     volumes:
       - ./backend/app:/app/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port ${APP_PORT:-2385} --reload
+    # APP_RELOAD controls --reload (dev) vs --workers 4 (prod)
+    command: >
+      sh -c "
+        if [ \"$$APP_RELOAD\" = \"true\" ]; then
+          uvicorn app.main:app --host 0.0.0.0 --port $$APP_PORT --reload
+        else
+          uvicorn app.main:app --host 0.0.0.0 --port $$APP_PORT --workers 4
+        fi
+      "
 
   # Next.js Frontend
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: ${FRONTEND_TARGET:-builder}
+      target: ${FRONTEND_TARGET:-deps}
     container_name: simandaya-frontend
+    restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_EXTERNAL_PORT:-2385}
       NODE_ENV: ${NODE_ENV:-development}
+      CI: "true"
     ports:
       - "${FRONTEND_EXTERNAL_PORT:-4923}:3000"
     depends_on:
@@ -77,7 +83,16 @@ services:
       - ./frontend:/app
       - /app/node_modules
       - /app/.next
-    command: sh -c "pnpm install && pnpm dev"
+    # NODE_ENV controls pnpm dev (dev) vs pnpm start (prod)
+    # For prod: run `make prod-build` first to compile the Next.js app
+    command: >
+      sh -c "
+        if [ \"$$NODE_ENV\" = \"production\" ]; then
+          exec pnpm start
+        else
+          pnpm install && exec pnpm dev
+        fi
+      "
 
 networks:
   simandaya-network:

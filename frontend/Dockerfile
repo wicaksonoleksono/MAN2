@@ -1,30 +1,22 @@
-# Multi-stage build for smaller final image
-FROM node:20-alpine AS builder
-
+# Base stage for shared setup
+FROM node:20-alpine AS base
 WORKDIR /app
-
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
-
-# Install pnpm
 RUN npm install -g pnpm
 
-# Install dependencies
+# Dependencies stage
+FROM base AS deps
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
-# Copy application code
+# Builder stage
+FROM deps AS builder
 COPY . .
-
-# Build the application
 RUN pnpm build
 
 # Production stage
-FROM node:20-alpine
+FROM base AS runner
 
 WORKDIR /app
-
-# Install pnpm
-RUN npm install -g pnpm
 
 # Copy package files
 COPY package.json pnpm-lock.yaml ./

@@ -6,6 +6,8 @@ from app.routers import (
     auth, users, absensi,
     tahun_ajaran, semester, kalender, mapel, slot_waktu,
     kelas, jadwal,
+    tugas, nilai, bobot,
+    rapor,
 )
 from app.config.settings import settings
 
@@ -58,6 +60,10 @@ app.include_router(mapel.router)
 app.include_router(slot_waktu.router)
 app.include_router(kelas.router)
 app.include_router(jadwal.router)
+app.include_router(tugas.router)
+app.include_router(nilai.router)
+app.include_router(bobot.router)
+app.include_router(rapor.router)
 
 
 @app.get("/", tags=["Root"])

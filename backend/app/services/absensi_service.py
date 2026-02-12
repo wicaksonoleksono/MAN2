@@ -1,14 +1,21 @@
 from uuid import UUID
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.absensi import Absensi
 from app.models.izin_keluar import IzinKeluar
 from app.models.user import User
+from app.models.kelas import Kelas
+from app.models.siswa_kelas import SiswaKelas
+from app.models.guru_mapel import GuruMapel
 from app.enums import UserType
 from app.dto.absensi.absensi_response import (
     AbsensiResponseDTO,
     IzinKeluarResponseDTO,
+)
+from app.dto.absensi.bulk_absensi_dto import (
+    BulkAbsensiCreateDTO,
+    BulkAbsensiResponseDTO,
 )
 
 
@@ -51,6 +58,7 @@ class AbsensiService:
             time_in=record.time_in,
             time_out=record.time_out,
             status=record.status,
+            marked_by=record.marked_by,
         )
 
     def _to_izin_dto(self, record: IzinKeluar) -> IzinKeluarResponseDTO:
@@ -153,3 +161,111 @@ class AbsensiService:
                 detail="Izin keluar record not found"
             )
         return self._to_izin_dto(record)
+
+    # ── Bulk Attendance ─────────────────────────────────────────────────────────
+
+    async def bulk_create_absensi(
+        self, request: BulkAbsensiCreateDTO, current_user: User
+    ) -> BulkAbsensiResponseDTO:
+        """
+        Bulk create/update attendance for a class.
+
+        Permission: admin, wali kelas of the class, or any guru who teaches the class.
+
+        Raises:
+            HTTPException: 404 if kelas not found
+            HTTPException: 403 if no permission
+            HTTPException: 400 if student not in class
+            HTTPException: 500 on database error
+        """
+        try:
+            # Validate kelas exists
+            result = await self.db.execute(
+                select(Kelas).where(Kelas.kelas_id == request.kelas_id)
+            )
+            kelas = result.scalar_one_or_none()
+            if not kelas:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Kelas with ID {request.kelas_id} not found"
+                )
+
+            # Permission check
+            if current_user.user_type != UserType.admin:
+                is_wali = kelas.wali_kelas_id == current_user.user_id
+
+                teaches_result = await self.db.execute(
+                    select(GuruMapel).where(
+                        and_(
+                            GuruMapel.user_id == current_user.user_id,
+                            GuruMapel.kelas_id == request.kelas_id,
+                        )
+                    )
+                )
+                is_teacher = teaches_result.first() is not None
+
+                if not is_wali and not is_teacher:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="You don't have permission to mark attendance for this class"
+                    )
+
+            # Get students in this kelas for validation
+            result = await self.db.execute(
+                select(SiswaKelas.user_id).where(
+                    SiswaKelas.kelas_id == request.kelas_id
+                )
+            )
+            valid_student_ids = {row[0] for row in result.all()}
+
+            created = 0
+            updated = 0
+
+            for entry in request.entries:
+                if entry.user_id not in valid_student_ids:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Student {entry.user_id} is not in this class"
+                    )
+
+                # Check existing record (upsert)
+                result = await self.db.execute(
+                    select(Absensi).where(
+                        and_(
+                            Absensi.user_id == entry.user_id,
+                            Absensi.tanggal == request.tanggal,
+                        )
+                    )
+                )
+                existing = result.scalar_one_or_none()
+
+                if existing:
+                    existing.status = entry.status
+                    existing.marked_by = current_user.user_id
+                    updated += 1
+                else:
+                    record = Absensi(
+                        user_id=entry.user_id,
+                        tanggal=request.tanggal,
+                        status=entry.status,
+                        marked_by=current_user.user_id,
+                    )
+                    self.db.add(record)
+                    created += 1
+
+            await self.db.commit()
+
+            return BulkAbsensiResponseDTO(
+                created_count=created,
+                updated_count=updated,
+                message=f"Bulk attendance: {created} created, {updated} updated"
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create bulk attendance: {str(e)}"
+            )

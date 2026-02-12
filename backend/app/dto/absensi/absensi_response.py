@@ -12,6 +12,7 @@ class AbsensiResponseDTO(BaseModel):
     time_in: Optional[datetime]
     time_out: Optional[datetime]
     status: StatusAbsensi
+    marked_by: Optional[UUID]
 
 
 class IzinKeluarResponseDTO(BaseModel):

@@ -86,3 +86,15 @@ class JenisKalender(Enum):
     ujian = "Ujian"
     kegiatan_sekolah = "Kegiatan Sekolah"
     hari_efektif = "Hari Efektif"
+
+
+# ── Penilaian Enums ──────────────────────────────────────────────────────────
+
+
+class JenisTugas(Enum):
+    tugas = "Tugas"
+    ulangan_harian = "Ulangan Harian"
+    uts = "UTS"
+    uas = "UAS"
+    ujian_praktik = "Ujian Praktik"
+    proyek = "Proyek"

@@ -52,8 +52,15 @@ class Absensi(Base):
         default=StatusAbsensi.alfa
     )
 
-    # Relationship
-    user: Mapped["User"] = relationship()
+    marked_by: Mapped[Optional[UUID]] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        ForeignKey("users.user_id", ondelete="SET NULL"),
+        nullable=True
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship(foreign_keys=[user_id])
+    marker: Mapped[Optional["User"]] = relationship(foreign_keys=[marked_by])
 
     def __repr__(self) -> str:
         return f"Absensi(user_id={self.user_id}, tanggal={self.tanggal}, status={self.status})"

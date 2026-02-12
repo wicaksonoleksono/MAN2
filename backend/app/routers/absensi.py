@@ -4,10 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.database import get_db
 from app.dependencies import require_role
 from app.enums import UserType
+from app.models.user import User
 from app.services.absensi_service import AbsensiService
 from app.dto.absensi.absensi_response import (
     AbsensiResponseDTO,
     IzinKeluarResponseDTO,
+)
+from app.dto.absensi.bulk_absensi_dto import (
+    BulkAbsensiCreateDTO,
+    BulkAbsensiResponseDTO,
 )
 
 router = APIRouter(
@@ -61,6 +66,21 @@ async def get_absensi(
 ) -> AbsensiResponseDTO:
     service = AbsensiService(db)
     return await service.get_absensi(absensi_id)
+
+
+@router.post(
+    "/attendance/bulk",
+    response_model=BulkAbsensiResponseDTO,
+    summary="Bulk Mark Attendance",
+    description="Mark attendance for an entire class at once (Guru/Admin).",
+)
+async def bulk_create_absensi(
+    request: BulkAbsensiCreateDTO,
+    current_user: User = Depends(require_role(UserType.guru, UserType.admin)),
+    db: AsyncSession = Depends(get_db),
+) -> BulkAbsensiResponseDTO:
+    service = AbsensiService(db)
+    return await service.bulk_create_absensi(request, current_user)
 
 
 # ── Izin Keluar ──────────────────────────────────────────────────────────────
