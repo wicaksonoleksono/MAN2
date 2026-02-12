@@ -15,7 +15,7 @@ services:
     networks:
       - simandaya-network
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-simandaya}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-simandaya} -d ${DB_NAME:-simandaya_db}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -90,7 +90,7 @@ services:
         if [ \"$$NODE_ENV\" = \"production\" ]; then
           exec pnpm start
         else
-          pnpm install && exec pnpm dev
+          pnpm install --no-frozen-lockfile && exec pnpm dev
         fi
       "
 

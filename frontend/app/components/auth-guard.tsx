@@ -1,0 +1,24 @@
+"use client";
+
+import { useEffect } from "react";
+import { useAppDispatch, useAppSelector } from "@/lib/hooks";
+import { logout } from "@/lib/features/auth/authSlice";
+import { useVerifyQuery } from "@/lib/features/auth/authApi";
+
+export default function AuthGuard({ children }: { children: React.ReactNode }) {
+  const dispatch = useAppDispatch();
+  const token = useAppSelector((state) => state.auth.token);
+
+  const { isError } = useVerifyQuery(undefined, {
+    skip: !token,
+    refetchOnMountOrArgChange: true,
+  });
+
+  useEffect(() => {
+    if (isError) {
+      dispatch(logout());
+    }
+  }, [isError, dispatch]);
+
+  return <>{children}</>;
+}

@@ -1,12 +1,15 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { RootState } from '@/lib/store';
-import type { User } from './authSlice';
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import type { RootState } from "@/lib/store";
+import type { User } from "./authSlice";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:2385";
+
+export type UserType = "Siswa" | "Guru" | "Admin";
 
 export interface SignupRequest {
   username: string;
   password: string;
+  user_type: UserType;
 }
 
 export interface LoginRequest {
@@ -31,43 +34,39 @@ export interface MessageResponse {
 }
 
 export const authApi = createApi({
-  reducerPath: 'authApi',
+  reducerPath: "authApi",
   baseQuery: fetchBaseQuery({
-    baseUrl: `${API_URL}/api/v1/auth`,
+    baseUrl: `${API_BASE}/api/v1/auth`,
     prepareHeaders: (headers, { getState }) => {
-      // Get token from Redux state
       const token = (getState() as RootState).auth.token;
-
-      // If we have a token, add it to headers
       if (token) {
-        headers.set('authorization', `Bearer ${token}`);
+        headers.set("authorization", `Bearer ${token}`);
       }
-
       return headers;
     },
   }),
   endpoints: (builder) => ({
     signup: builder.mutation<SignupResponse, SignupRequest>({
-      query: (credentials) => ({
-        url: '/signup',
-        method: 'POST',
-        body: credentials,
+      query: (body) => ({
+        url: "/signup",
+        method: "POST",
+        body,
       }),
     }),
     login: builder.mutation<TokenResponse, LoginRequest>({
-      query: (credentials) => ({
-        url: '/login',
-        method: 'POST',
-        body: credentials,
+      query: (body) => ({
+        url: "/login",
+        method: "POST",
+        body,
       }),
     }),
     verify: builder.query<User, void>({
-      query: () => '/verify',
+      query: () => "/verify",
     }),
     logout: builder.mutation<MessageResponse, void>({
       query: () => ({
-        url: '/logout',
-        method: 'POST',
+        url: "/logout",
+        method: "POST",
       }),
     }),
   }),

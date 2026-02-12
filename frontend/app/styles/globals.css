@@ -1,16 +1,93 @@
-html,
-body {
-  min-height: 100vh;
-  padding: 0;
-  margin: 0;
-  font-family: system-ui, sans-serif;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Off-white warm background */
+    --background: 47 27% 94%;         /* #F3F1EA */
+    --foreground: 214 13% 14%;        /* #1F2328 charcoal */
+
+    --card: 0 0% 100%;
+    --card-foreground: 214 13% 14%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 214 13% 14%;
+
+    /* Gold as primary — buttons, focus rings, highlights */
+    --primary: 42 53% 54%;            /* #C8A24A muted gold */
+    --primary-foreground: 214 13% 14%;/* dark text on gold */
+
+    /* Muted blue as secondary */
+    --secondary: 203 57% 42%;         /* #2E78A6 */
+    --secondary-foreground: 47 27% 94%;
+
+    --muted: 47 20% 88%;
+    --muted-foreground: 210 10% 40%;  /* #3A4046 warm gray */
+
+    /* Soft amber for hover accents */
+    --accent: 38 67% 65%;             /* #E2B66A */
+    --accent-foreground: 214 13% 14%;
+
+    --destructive: 358 53% 37%;       /* #8E2C2F deep muted red */
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 47 15% 84%;
+    --input: 47 15% 84%;
+    --ring: 42 53% 54%;               /* gold ring */
+
+    --radius: 0.5rem;
+
+    --chart-1: 42 53% 54%;            /* gold */
+    --chart-2: 203 57% 42%;           /* blue */
+    --chart-3: 145 33% 36%;           /* #3E7B57 green */
+    --chart-4: 358 53% 37%;           /* red */
+    --chart-5: 27 62% 44%;            /* #B66A2A burnt orange */
+  }
+
+  .dark {
+    --background: 214 13% 14%;        /* #1F2328 charcoal */
+    --foreground: 47 27% 94%;         /* #F3F1EA */
+
+    --card: 214 13% 18%;
+    --card-foreground: 47 27% 94%;
+
+    --popover: 214 13% 18%;
+    --popover-foreground: 47 27% 94%;
+
+    /* Lighter gold on dark background */
+    --primary: 46 66% 76%;            /* #EAD79A */
+    --primary-foreground: 214 13% 14%;
+
+    --secondary: 204 56% 21%;         /* #173B52 deep navy */
+    --secondary-foreground: 200 54% 71%;/* #8FC3DD soft sky */
+
+    --muted: 210 10% 22%;
+    --muted-foreground: 47 20% 60%;
+
+    --accent: 203 57% 42%;            /* #2E78A6 */
+    --accent-foreground: 47 27% 94%;
+
+    --destructive: 358 53% 37%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 214 13% 22%;
+    --input: 214 13% 22%;
+    --ring: 46 66% 76%;
+
+    --chart-1: 46 66% 76%;            /* light gold */
+    --chart-2: 200 54% 71%;           /* soft sky */
+    --chart-3: 129 19% 74%;           /* #AFC9B3 sage */
+    --chart-4: 38 67% 65%;            /* soft amber */
+    --chart-5: 204 56% 21%;           /* deep navy */
+  }
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-* {
-  box-sizing: border-box;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }

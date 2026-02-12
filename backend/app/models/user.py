@@ -3,17 +3,10 @@ from uuid import UUID, uuid4
 from typing import Optional
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Boolean, DateTime, Enum as SQLAlchemyEnum, UUID as SQLAlchemyUUID, func
-from passlib.context import CryptContext
+import bcrypt as bcrypt_lib
 from app.config.database import Base
 from app.config.settings import settings
 from app.enums import UserType
-
-
-pwd_context = CryptContext(
-    schemes=["bcrypt"],
-    deprecated="auto",
-    bcrypt__rounds=settings.BCRYPT_ROUNDS
-)
 
 
 def utc_now() -> datetime:
@@ -74,10 +67,16 @@ class User(Base):
     guru_profile: Mapped[Optional["GuruProfile"]] = relationship(back_populates="user")
 
     def set_password(self, plain_password: str) -> None:
-        self.password_hash = pwd_context.hash(plain_password)
+        salt = bcrypt_lib.gensalt(rounds=settings.BCRYPT_ROUNDS)
+        self.password_hash = bcrypt_lib.hashpw(
+            plain_password.encode("utf-8"), salt
+        ).decode("utf-8")
 
     def verify_password(self, plain_password: str) -> bool:
-        return pwd_context.verify(plain_password, self.password_hash)
+        return bcrypt_lib.checkpw(
+            plain_password.encode("utf-8"),
+            self.password_hash.encode("utf-8"),
+        )
 
     def update_last_login(self) -> None:
         self.last_login = utc_now()
