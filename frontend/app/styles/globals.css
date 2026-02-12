@@ -14,9 +14,9 @@
     --popover: 0 0% 100%;
     --popover-foreground: 214 13% 14%;
 
-    /* Gold as primary — buttons, focus rings, highlights */
-    --primary: 42 53% 54%;            /* #C8A24A muted gold */
-    --primary-foreground: 214 13% 14%;/* dark text on gold */
+    /* Muted blue as primary — buttons, focus rings, highlights */
+    --primary: 203 57% 42%;           /* #2E78A6 */
+    --primary-foreground: 47 27% 94%; /* #F3F1EA off-white text on blue */
 
     /* Muted blue as secondary */
     --secondary: 203 57% 42%;         /* #2E78A6 */
@@ -34,7 +34,7 @@
 
     --border: 47 15% 84%;
     --input: 47 15% 84%;
-    --ring: 42 53% 54%;               /* gold ring */
+    --ring: 203 57% 42%;              /* #2E78A6 */
 
     --radius: 0.5rem;
 
