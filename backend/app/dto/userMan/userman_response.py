@@ -54,5 +54,12 @@ class CreateGuruResponseDTO(BaseModel):
     profile: GuruProfileResponseDTO
 
 
+class PaginatedStudentsResponse(BaseModel):
+    items: list[StudentProfileResponseDTO]
+    total: int
+    skip: int
+    limit: int
+
+
 class MessageResponseDTO(BaseModel):
     message: str

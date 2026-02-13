@@ -1,5 +1,5 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.database import get_db
 from app.dependencies import require_role
@@ -12,7 +12,7 @@ from app.dto.userMan.userman_request import (
 from app.dto.userMan.userman_response import (
     CreateStudentResponseDTO, StudentProfileResponseDTO,
     CreateGuruResponseDTO, GuruProfileResponseDTO,
-    MessageResponseDTO,
+    PaginatedStudentsResponse, MessageResponseDTO,
 )
 
 router = APIRouter(
@@ -42,16 +42,18 @@ async def create_student(
 
 @router.get(
     "/students",
-    response_model=list[StudentProfileResponseDTO],
+    response_model=PaginatedStudentsResponse,
     summary="List Students",
-    description="List all student profiles (Admin only).",
+    description="List student profiles with pagination (Admin only).",
     dependencies=[Depends(require_role(UserType.admin))]
 )
 async def list_students(
+    skip: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(default=30, ge=1, le=100, description="Max records to return (1-100)"),
     db: AsyncSession = Depends(get_db),
-) -> list[StudentProfileResponseDTO]:
+) -> PaginatedStudentsResponse:
     service = UserManagementService(db)
-    return await service.list_students()
+    return await service.list_students(skip=skip, limit=limit)
 
 
 @router.get(

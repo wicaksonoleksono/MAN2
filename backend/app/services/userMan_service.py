@@ -2,7 +2,7 @@ import secrets
 import string
 from uuid import UUID
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.models.siswa_profile import SiswaProfile
@@ -15,7 +15,7 @@ from app.dto.userMan.userman_request import (
 from app.dto.userMan.userman_response import (
     CreateStudentResponseDTO, StudentProfileResponseDTO,
     CreateGuruResponseDTO, GuruProfileResponseDTO,
-    MessageResponseDTO,
+    PaginatedStudentsResponse, MessageResponseDTO,
 )
 
 
@@ -244,16 +244,33 @@ class UserManagementService:
 
     # ── Student CRUD ─────────────────────────────────────────────────────────
 
-    async def list_students(self) -> list[StudentProfileResponseDTO]:
+    async def list_students(self, skip: int = 0, limit: int = 30) -> PaginatedStudentsResponse:
         """
-        List all student profiles.
+        List student profiles with pagination.
+
+        Args:
+            skip: Number of records to skip (offset)
+            limit: Maximum number of records to return
 
         Raises:
             HTTPException: 500 if database error
         """
-        result = await self.db.execute(select(SiswaProfile))
+        total_result = await self.db.execute(
+            select(func.count()).select_from(SiswaProfile)
+        )
+        total = total_result.scalar_one()
+
+        result = await self.db.execute(
+            select(SiswaProfile).offset(skip).limit(limit)
+        )
         profiles = result.scalars().all()
-        return [self._to_student_dto(p) for p in profiles]
+
+        return PaginatedStudentsResponse(
+            items=[self._to_student_dto(p) for p in profiles],
+            total=total,
+            skip=skip,
+            limit=limit,
+        )
 
     async def get_student(self, siswa_id: UUID) -> StudentProfileResponseDTO:
         """

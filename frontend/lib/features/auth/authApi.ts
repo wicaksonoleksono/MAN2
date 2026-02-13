@@ -1,37 +1,18 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import type { RootState } from "@/lib/store";
 import type { User } from "./authSlice";
+import type {
+  UserType,
+  SignupRequest,
+  LoginRequest,
+  SignupResponse,
+  TokenResponse,
+  MessageResponse,
+} from "./types";
+
+export type { UserType, SignupRequest, LoginRequest, SignupResponse, TokenResponse, MessageResponse };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:2385";
-
-export type UserType = "Siswa" | "Guru" | "Admin";
-
-export interface SignupRequest {
-  username: string;
-  password: string;
-  user_type: UserType;
-}
-
-export interface LoginRequest {
-  username: string;
-  password: string;
-}
-
-export interface SignupResponse {
-  message: string;
-  user: User;
-}
-
-export interface TokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-  user: User;
-}
-
-export interface MessageResponse {
-  message: string;
-}
 
 export const authApi = createApi({
   reducerPath: "authApi",

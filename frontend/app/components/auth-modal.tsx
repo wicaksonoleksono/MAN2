@@ -71,13 +71,13 @@ export default function AuthModal({ initialMode = "login" }: AuthModalProps) {
     <div className="min-h-screen bg-background">
       <Dialog
         open={true}
-        onOpenChange={(isOpen) => {
+        onOpenChange={(isOpen: boolean) => {
           if (!isOpen) router.push("/");
         }}
       >
         <DialogContent
-          onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
+          onInteractOutside={(e: Event) => e.preventDefault()}
+          onEscapeKeyDown={(e: KeyboardEvent) => e.preventDefault()}
         >
           <DialogHeader>
             <DialogTitle>
@@ -115,7 +115,7 @@ export default function AuthModal({ initialMode = "login" }: AuthModalProps) {
                 autoComplete="username"
                 required
                 className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder={mode === "signup" ? "contoh: ahmad_siswa" : "Username"}
+                placeholder={mode === "signup" ? "contoh: user123" : "Username"}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={isLoading || signupSuccess}
@@ -158,9 +158,9 @@ export default function AuthModal({ initialMode = "login" }: AuthModalProps) {
                   disabled={isLoading || signupSuccess}
                   className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="Siswa">Siswa</option>
-                  <option value="Guru">Guru</option>
                   <option value="Admin">Admin</option>
+                  <option value="Guru">Guru</option>
+                  <option value="Siswa">Siswa</option>
                 </select>
               </div>
             )}

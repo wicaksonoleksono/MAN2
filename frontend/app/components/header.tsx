@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
@@ -22,8 +22,13 @@ export default function Header() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const [mounted, setMounted] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [logoutApi] = useLogoutMutation();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -73,7 +78,7 @@ export default function Header() {
             </Link>
           ))}
 
-          {isAuthenticated ? (
+          {mounted && isAuthenticated ? (
             <button
               onClick={() => setShowLogoutDialog(true)}
               className="text-[#8FC3DD] hover:text-[#F3F1EA] transition-colors"

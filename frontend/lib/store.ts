@@ -2,8 +2,9 @@ import type { Action, ThunkAction } from "@reduxjs/toolkit";
 import { combineSlices, configureStore } from "@reduxjs/toolkit";
 import authReducer from "./features/auth/authSlice";
 import { authApi } from "./features/auth/authApi";
+import { usersApi } from "./features/users/usersApi";
 
-const rootReducer = combineSlices(authApi, {
+const rootReducer = combineSlices(authApi, usersApi, {
   auth: authReducer,
 });
 
@@ -13,7 +14,7 @@ export const makeStore = () => {
   return configureStore({
     reducer: rootReducer,
     middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware().concat(authApi.middleware),
+      getDefaultMiddleware().concat(authApi.middleware, usersApi.middleware),
   });
 };
 
