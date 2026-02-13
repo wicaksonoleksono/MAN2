@@ -12,6 +12,8 @@ export type StructuralRole =
   | "Pustakawan"
   | "Laboran"
   | "Petugas UKS";
+
+  
 export type BidangWakasek =
   | "Kurikulum"
   | "Kesiswaan"
