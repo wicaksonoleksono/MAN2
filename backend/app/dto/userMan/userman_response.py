@@ -6,16 +6,16 @@ from app.enums import StatusSiswa, StatusGuru, JenisKelamin, StructuralRole, Bid
 
 class StudentProfileResponseDTO(BaseModel):
     siswa_id: UUID
-    nis: str
+    nis: Optional[str] = None
     nama_lengkap: str
-    dob: str
-    tempat_lahir: str
+    dob: Optional[str] = None
+    tempat_lahir: Optional[str] = None
     jenis_kelamin: JenisKelamin
-    alamat: str
-    nama_wali: str
-    nik: str
+    alamat: Optional[str] = None
+    nama_wali: Optional[str] = None
+    nik: Optional[str] = None
     kelas_jurusan: str
-    tahun_masuk: int
+    tahun_masuk: Optional[int] = None
     status_siswa: StatusSiswa
     kontak: str
     kewarganegaraan: str
@@ -30,16 +30,16 @@ class CreateStudentResponseDTO(BaseModel):
 
 class GuruProfileResponseDTO(BaseModel):
     guru_id: UUID
-    nip: str
+    nip: Optional[str] = None
     nama_lengkap: str
-    dob: str
-    tempat_lahir: str
+    dob: Optional[str] = None
+    tempat_lahir: Optional[str] = None
     jenis_kelamin: JenisKelamin
-    alamat: str
-    nik: str
-    tahun_masuk: int
+    alamat: Optional[str] = None
+    nik: Optional[str] = None
+    tahun_masuk: Optional[int] = None
     status_guru: StatusGuru
-    kontak: str
+    kontak: Optional[str] = None
     kewarganegaraan: str
     structural_role: StructuralRole
     bidang_wakasek: Optional[BidangWakasek]
@@ -56,6 +56,13 @@ class CreateGuruResponseDTO(BaseModel):
 
 class PaginatedStudentsResponse(BaseModel):
     items: list[StudentProfileResponseDTO]
+    total: int
+    skip: int
+    limit: int
+
+
+class PaginatedTeachersResponse(BaseModel):
+    items: list[GuruProfileResponseDTO]
     total: int
     skip: int
     limit: int

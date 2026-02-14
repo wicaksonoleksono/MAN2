@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +13,11 @@ from app.dto.userMan.userman_request import (
 from app.dto.userMan.userman_response import (
     CreateStudentResponseDTO, StudentProfileResponseDTO,
     CreateGuruResponseDTO, GuruProfileResponseDTO,
-    PaginatedStudentsResponse, MessageResponseDTO,
+    PaginatedStudentsResponse, PaginatedTeachersResponse, MessageResponseDTO,
+)
+from app.services.registration_service import RegistrationService
+from app.dto.registration.registration_dto import (
+    PreRegisterStudentDTO, PreRegisterTeacherDTO, PreRegisterResponseDTO,
 )
 
 router = APIRouter(
@@ -50,10 +55,11 @@ async def create_student(
 async def list_students(
     skip: int = Query(default=0, ge=0, description="Number of records to skip"),
     limit: int = Query(default=30, ge=1, le=100, description="Max records to return (1-100)"),
+    search: Optional[str] = Query(default=None, description="Search across nis, nama, nik, kelas, kontak, tempat_lahir"),
     db: AsyncSession = Depends(get_db),
 ) -> PaginatedStudentsResponse:
     service = UserManagementService(db)
-    return await service.list_students(skip=skip, limit=limit)
+    return await service.list_students(skip=skip, limit=limit, search=search)
 
 
 @router.get(
@@ -123,16 +129,19 @@ async def create_teacher(
 
 @router.get(
     "/teachers",
-    response_model=list[GuruProfileResponseDTO],
+    response_model=PaginatedTeachersResponse,
     summary="List Teachers",
-    description="List all teacher profiles (Admin only).",
+    description="List teacher profiles with pagination and search (Admin only).",
     dependencies=[Depends(require_role(UserType.admin))]
 )
 async def list_teachers(
+    skip: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(default=30, ge=1, le=100, description="Max records to return (1-100)"),
+    search: Optional[str] = Query(default=None, description="Search across nip, nama, nik, kontak, mapel, tempat_lahir"),
     db: AsyncSession = Depends(get_db),
-) -> list[GuruProfileResponseDTO]:
+) -> PaginatedTeachersResponse:
     service = UserManagementService(db)
-    return await service.list_gurus()
+    return await service.list_gurus(skip=skip, limit=limit, search=search)
 
 
 @router.get(
@@ -179,3 +188,38 @@ async def delete_teacher(
 ) -> MessageResponseDTO:
     service = UserManagementService(db)
     return await service.delete_guru(guru_id)
+
+
+# ── Pre-Register Endpoints ──────────────────────────────────────────────────
+
+
+@router.post(
+    "/students/pre-register",
+    response_model=PreRegisterResponseDTO,
+    status_code=201,
+    summary="Pre-Register Student",
+    description="Create a PENDING student entry (Admin only). Student completes registration via /register.",
+    dependencies=[Depends(require_role(UserType.admin))]
+)
+async def pre_register_student(
+    request: PreRegisterStudentDTO,
+    db: AsyncSession = Depends(get_db),
+) -> PreRegisterResponseDTO:
+    service = RegistrationService(db)
+    return await service.pre_register_student(request)
+
+
+@router.post(
+    "/teachers/pre-register",
+    response_model=PreRegisterResponseDTO,
+    status_code=201,
+    summary="Pre-Register Teacher",
+    description="Create a PENDING teacher entry (Admin only). Teacher completes registration via /register.",
+    dependencies=[Depends(require_role(UserType.admin))]
+)
+async def pre_register_teacher(
+    request: PreRegisterTeacherDTO,
+    db: AsyncSession = Depends(get_db),
+) -> PreRegisterResponseDTO:
+    service = RegistrationService(db)
+    return await service.pre_register_teacher(request)

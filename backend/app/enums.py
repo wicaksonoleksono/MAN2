@@ -88,6 +88,11 @@ class JenisKalender(Enum):
     hari_efektif = "Hari Efektif"
 
 
+class RegistrationStatus(Enum):
+    pending = "Pending"
+    completed = "Completed"
+
+
 # ── Penilaian Enums ──────────────────────────────────────────────────────────
 
 

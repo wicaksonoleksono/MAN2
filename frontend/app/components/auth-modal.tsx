@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useLoginMutation, useSignupMutation, type UserType } from "@/lib/features/auth/authApi";
+import { useLoginMutation } from "@/lib/features/auth/authApi";
 import { useAppDispatch } from "@/lib/hooks";
 import { setCredentials } from "@/lib/features/auth/authSlice";
 import {
@@ -12,58 +12,27 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import Link from "next/link";
 
-type Mode = "login" | "signup";
-
-interface AuthModalProps {
-  initialMode?: Mode;
-}
-
-export default function AuthModal({ initialMode = "login" }: AuthModalProps) {
-  const [mode, setMode] = useState<Mode>(initialMode);
-
+export default function AuthModal() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [userType, setUserType] = useState<UserType>("Siswa");
   const [error, setError] = useState("");
-  const [signupSuccess, setSignupSuccess] = useState(false);
 
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const [login, { isLoading: loginLoading }] = useLoginMutation();
-  const [signup, { isLoading: signupLoading }] = useSignupMutation();
-
-  const isLoading = loginLoading || signupLoading;
-
-  const switchMode = (next: Mode) => {
-    setMode(next);
-    setError("");
-    setSignupSuccess(false);
-    setUsername("");
-    setPassword("");
-    setUserType("Siswa");
-  };
+  const [login, { isLoading }] = useLoginMutation();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
 
-    if (mode === "login") {
-      try {
-        const result = await login({ username, password }).unwrap();
-        dispatch(setCredentials({ token: result.access_token, user: result.user }));
-        router.push("/");
-      } catch (err: any) {
-        setError(err.data?.detail || "Login gagal. Silakan coba lagi.");
-      }
-    } else {
-      try {
-        await signup({ username, password, user_type: userType }).unwrap();
-        setSignupSuccess(true);
-        setTimeout(() => switchMode("login"), 2000);
-      } catch (err: any) {
-        setError(err.data?.detail || "Pendaftaran gagal. Silakan coba lagi.");
-      }
+    try {
+      const result = await login({ username, password }).unwrap();
+      dispatch(setCredentials({ token: result.access_token, user: result.user }));
+      router.push("/");
+    } catch (err: any) {
+      setError(err.data?.detail || "Login gagal. Silakan coba lagi.");
     }
   };
 
@@ -80,13 +49,9 @@ export default function AuthModal({ initialMode = "login" }: AuthModalProps) {
           onEscapeKeyDown={(e: KeyboardEvent) => e.preventDefault()}
         >
           <DialogHeader>
-            <DialogTitle>
-              {mode === "login" ? "Masuk" : "Daftar"}
-            </DialogTitle>
+            <DialogTitle>Masuk</DialogTitle>
             <DialogDescription>
-              {mode === "login"
-                ? "Masuk ke akun Simandaya Anda."
-                : "Buat akun Simandaya baru."}
+              Masuk ke akun Simandaya Anda.
             </DialogDescription>
           </DialogHeader>
 
@@ -94,13 +59,6 @@ export default function AuthModal({ initialMode = "login" }: AuthModalProps) {
             {error && (
               <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3">
                 <p className="text-sm text-destructive">{error}</p>
-              </div>
-            )}
-            {signupSuccess && (
-              <div className="rounded-md bg-primary/10 border border-primary/20 p-3">
-                <p className="text-sm text-primary font-medium">
-                  Akun berhasil dibuat! Mengalihkan ke halaman masuk...
-                </p>
               </div>
             )}
 
@@ -115,16 +73,11 @@ export default function AuthModal({ initialMode = "login" }: AuthModalProps) {
                 autoComplete="username"
                 required
                 className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder={mode === "signup" ? "contoh: user123" : "Username"}
+                placeholder="Username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                disabled={isLoading || signupSuccess}
+                disabled={isLoading}
               />
-              {mode === "signup" && (
-                <p className="text-xs text-muted-foreground">
-                  3–100 karakter, huruf kecil, angka, underscore saja
-                </p>
-              )}
             </div>
 
             <div className="space-y-1">
@@ -135,73 +88,33 @@ export default function AuthModal({ initialMode = "login" }: AuthModalProps) {
                 id="password"
                 name="password"
                 type="password"
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                autoComplete="current-password"
                 required
                 className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder={mode === "signup" ? "Min 8 karakter, huruf besar, kecil, angka" : "Password"}
+                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading || signupSuccess}
+                disabled={isLoading}
               />
             </div>
 
-            {mode === "signup" && (
-              <div className="space-y-1">
-                <label htmlFor="user_type" className="text-sm font-medium">
-                  Tipe pengguna
-                </label>
-                <select
-                  id="user_type"
-                  name="user_type"
-                  value={userType}
-                  onChange={(e) => setUserType(e.target.value as UserType)}
-                  disabled={isLoading || signupSuccess}
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="Admin">Admin</option>
-                  <option value="Guru">Guru</option>
-                  <option value="Siswa">Siswa</option>
-                </select>
-              </div>
-            )}
-
             <button
               type="submit"
-              disabled={isLoading || signupSuccess}
+              disabled={isLoading}
               className="w-full py-2 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading
-                ? "Memuat..."
-                : mode === "login"
-                ? "Masuk"
-                : "Daftar"}
+              {isLoading ? "Memuat..." : "Masuk"}
             </button>
           </form>
 
           <div className="text-center text-sm text-muted-foreground">
-            {mode === "login" ? (
-              <>
-                Belum punya akun?{" "}
-                <button
-                  type="button"
-                  onClick={() => switchMode("signup")}
-                  className="text-primary font-medium hover:underline"
-                >
-                  Daftar
-                </button>
-              </>
-            ) : (
-              <>
-                Sudah punya akun?{" "}
-                <button
-                  type="button"
-                  onClick={() => switchMode("login")}
-                  className="text-primary font-medium hover:underline"
-                >
-                  Masuk
-                </button>
-              </>
-            )}
+            Belum punya akun?{" "}
+            <Link
+              href="/register"
+              className="text-primary font-medium hover:underline"
+            >
+              Daftar
+            </Link>
           </div>
         </DialogContent>
       </Dialog>

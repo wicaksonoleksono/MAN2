@@ -1,8 +1,9 @@
 import secrets
 import string
+from typing import Optional
 from uuid import UUID
 from fastapi import HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.models.siswa_profile import SiswaProfile
@@ -15,7 +16,7 @@ from app.dto.userMan.userman_request import (
 from app.dto.userMan.userman_response import (
     CreateStudentResponseDTO, StudentProfileResponseDTO,
     CreateGuruResponseDTO, GuruProfileResponseDTO,
-    PaginatedStudentsResponse, MessageResponseDTO,
+    PaginatedStudentsResponse, PaginatedTeachersResponse, MessageResponseDTO,
 )
 
 
@@ -244,25 +245,43 @@ class UserManagementService:
 
     # ── Student CRUD ─────────────────────────────────────────────────────────
 
-    async def list_students(self, skip: int = 0, limit: int = 30) -> PaginatedStudentsResponse:
+    async def list_students(
+        self, skip: int = 0, limit: int = 30, search: Optional[str] = None
+    ) -> PaginatedStudentsResponse:
         """
-        List student profiles with pagination.
+        List student profiles with pagination and optional search.
 
         Args:
             skip: Number of records to skip (offset)
             limit: Maximum number of records to return
+            search: Optional search term (ILIKE across nis, nama_lengkap, nik, kelas_jurusan, kontak, tempat_lahir)
 
         Raises:
             HTTPException: 500 if database error
         """
-        total_result = await self.db.execute(
-            select(func.count()).select_from(SiswaProfile)
-        )
+        search_filter = None
+        if search:
+            pattern = f"%{search}%"
+            search_filter = or_(
+                SiswaProfile.nis.ilike(pattern),
+                SiswaProfile.nama_lengkap.ilike(pattern),
+                SiswaProfile.nik.ilike(pattern),
+                SiswaProfile.kelas_jurusan.ilike(pattern),
+                SiswaProfile.kontak.ilike(pattern),
+                SiswaProfile.tempat_lahir.ilike(pattern),
+            )
+
+        count_query = select(func.count()).select_from(SiswaProfile)
+        data_query = select(SiswaProfile)
+
+        if search_filter is not None:
+            count_query = count_query.where(search_filter)
+            data_query = data_query.where(search_filter)
+
+        total_result = await self.db.execute(count_query)
         total = total_result.scalar_one()
 
-        result = await self.db.execute(
-            select(SiswaProfile).offset(skip).limit(limit)
-        )
+        result = await self.db.execute(data_query.offset(skip).limit(limit))
         profiles = result.scalars().all()
 
         return PaginatedStudentsResponse(
@@ -367,16 +386,51 @@ class UserManagementService:
 
     # ── Guru CRUD ────────────────────────────────────────────────────────────
 
-    async def list_gurus(self) -> list[GuruProfileResponseDTO]:
+    async def list_gurus(
+        self, skip: int = 0, limit: int = 30, search: Optional[str] = None
+    ) -> PaginatedTeachersResponse:
         """
-        List all teacher profiles.
+        List teacher profiles with pagination and optional search.
+
+        Args:
+            skip: Number of records to skip (offset)
+            limit: Maximum number of records to return
+            search: Optional search term (ILIKE across nip, nama_lengkap, nik, kontak, mata_pelajaran, tempat_lahir)
 
         Raises:
             HTTPException: 500 if database error
         """
-        result = await self.db.execute(select(GuruProfile))
+        search_filter = None
+        if search:
+            pattern = f"%{search}%"
+            search_filter = or_(
+                GuruProfile.nip.ilike(pattern),
+                GuruProfile.nama_lengkap.ilike(pattern),
+                GuruProfile.nik.ilike(pattern),
+                GuruProfile.kontak.ilike(pattern),
+                GuruProfile.mata_pelajaran.ilike(pattern),
+                GuruProfile.tempat_lahir.ilike(pattern),
+            )
+
+        count_query = select(func.count()).select_from(GuruProfile)
+        data_query = select(GuruProfile)
+
+        if search_filter is not None:
+            count_query = count_query.where(search_filter)
+            data_query = data_query.where(search_filter)
+
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar_one()
+
+        result = await self.db.execute(data_query.offset(skip).limit(limit))
         profiles = result.scalars().all()
-        return [self._to_guru_dto(p) for p in profiles]
+
+        return PaginatedTeachersResponse(
+            items=[self._to_guru_dto(p) for p in profiles],
+            total=total,
+            skip=skip,
+            limit=limit,
+        )
 
     async def get_guru(self, guru_id: UUID) -> GuruProfileResponseDTO:
         """

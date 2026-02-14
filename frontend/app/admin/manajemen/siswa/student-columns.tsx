@@ -1,0 +1,42 @@
+"use client";
+
+import { type ColumnDef } from "@tanstack/react-table";
+import { Badge } from "@/components/ui/badge";
+import type { StudentProfile } from "@/lib/features/users/students/types";
+
+export const studentColumns: ColumnDef<StudentProfile>[] = [
+  {
+    accessorKey: "nis",
+    header: "NIS",
+  },
+  {
+    accessorKey: "nama_lengkap",
+    header: "Nama",
+  },
+  {
+    accessorKey: "kelas_jurusan",
+    header: "Kelas/Jurusan",
+  },
+  {
+    accessorKey: "tahun_masuk",
+    header: "Tahun Masuk",
+  },
+  {
+    accessorKey: "status_siswa",
+    header: "Status",
+    cell: ({ row }) => {
+      const status = row.getValue("status_siswa") as string;
+      const variant =
+        status === "Aktif"
+          ? "default"
+          : status === "Lulus"
+            ? "secondary"
+            : "destructive";
+      return <Badge variant={variant}>{status}</Badge>;
+    },
+  },
+  {
+    accessorKey: "kontak",
+    header: "Kontak",
+  },
+];

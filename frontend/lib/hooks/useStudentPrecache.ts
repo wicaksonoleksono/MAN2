@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePrefetch } from "@/lib/features/users/usersApi";
+import { studentsApi } from "@/lib/features/users/students/studentsApi";
+
+const usePrefetch = studentsApi.usePrefetch;
 
 const CHUNK = 30;
 
@@ -17,7 +19,7 @@ const CHUNK = 30;
  * @param skip   Current query offset (not display page number)
  * @param total  Total records returned by the API
  */
-export function useStudentPrecache(skip: number, total: number) {
+export function useStudentPrecache(skip: number, total: number, search?: string) {
   const prefetch = usePrefetch("listStudents");
 
   useEffect(() => {
@@ -29,14 +31,14 @@ export function useStudentPrecache(skip: number, total: number) {
     const nextSkip = (chunkIndex + 1) * CHUNK;
     if (nextSkip < total) {
       const remaining = total - nextSkip;
-      prefetch({ skip: nextSkip, limit: Math.min(CHUNK, remaining) });
+      prefetch({ skip: nextSkip, limit: Math.min(CHUNK, remaining), search });
     }
 
     // ── Prev chunk ────────────────────────────────────────────────────────────
     const prevSkip = (chunkIndex - 1) * CHUNK;
     if (prevSkip >= 0) {
       const remaining = total - prevSkip;
-      prefetch({ skip: prevSkip, limit: Math.min(CHUNK, remaining) });
+      prefetch({ skip: prevSkip, limit: Math.min(CHUNK, remaining), search });
     }
-  }, [skip, total, prefetch]);
+  }, [skip, total, search, prefetch]);
 }

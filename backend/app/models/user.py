@@ -6,7 +6,7 @@ from sqlalchemy import String, Boolean, DateTime, Enum as SQLAlchemyEnum, UUID a
 import bcrypt as bcrypt_lib
 from app.config.database import Base
 from app.config.settings import settings
-from app.enums import UserType
+from app.enums import UserType, RegistrationStatus
 
 
 def utc_now() -> datetime:
@@ -27,10 +27,10 @@ class User(Base):
         nullable=False
     )
 
-    username: Mapped[str] = mapped_column(
+    username: Mapped[Optional[str]] = mapped_column(
         String(100),
         unique=True,
-        nullable=False,
+        nullable=True,
         index=True
     )
 
@@ -39,9 +39,15 @@ class User(Base):
         nullable=False
     )
 
-    password_hash: Mapped[str] = mapped_column(
+    password_hash: Mapped[Optional[str]] = mapped_column(
         String(255),
-        nullable=False
+        nullable=True
+    )
+
+    registration_status: Mapped[RegistrationStatus] = mapped_column(
+        SQLAlchemyEnum(RegistrationStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=RegistrationStatus.completed
     )
 
     created_at: Mapped[datetime] = mapped_column(

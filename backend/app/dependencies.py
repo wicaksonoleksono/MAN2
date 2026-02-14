@@ -6,7 +6,7 @@ from uuid import UUID
 from app.config.database import get_db
 from app.models.user import User
 from app.utils.jwt_utils import JWTManager
-from app.enums import UserType
+from app.enums import UserType, RegistrationStatus
 
 bearer_scheme = HTTPBearer()
 jwt_manager = JWTManager()
@@ -45,6 +45,12 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is deactivated"
+        )
+
+    if user.registration_status == RegistrationStatus.pending:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Registrasi belum selesai. Silakan lengkapi pendaftaran."
         )
 
     return user

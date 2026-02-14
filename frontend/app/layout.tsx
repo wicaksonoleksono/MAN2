@@ -16,10 +16,10 @@ export default function RootLayout({ children }: Props) {
   return (
     <StoreProvider>
       <html lang="en" className={inter.className}>
-        <body>
+        <body className="flex min-h-screen flex-col">
           <AuthGuard>
             <Header />
-            {children}
+            <div className="flex-1">{children}</div>
             <Footer />
           </AuthGuard>
         </body>

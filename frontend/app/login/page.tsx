@@ -1,5 +1,5 @@
-import AuthModal from "@/app/components/auth-modal";
+import { redirect } from "next/navigation";
 
 export default function LoginPage() {
-  return <AuthModal initialMode="login" />;
+  redirect("/");
 }

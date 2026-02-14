@@ -1,4 +1,5 @@
 from uuid import UUID, uuid4
+from typing import Optional
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import (
     String, Integer, Enum as SQLAlchemyEnum,
@@ -25,10 +26,10 @@ class SiswaProfile(Base):
         nullable=False
     )
 
-    nis: Mapped[str] = mapped_column(
+    nis: Mapped[Optional[str]] = mapped_column(
         String(50),
         unique=True,
-        nullable=False
+        nullable=True
     )
 
     nama_lengkap: Mapped[str] = mapped_column(
@@ -36,14 +37,14 @@ class SiswaProfile(Base):
         nullable=False
     )
 
-    dob: Mapped[str] = mapped_column(
+    dob: Mapped[Optional[str]] = mapped_column(
         String(50),
-        nullable=False
+        nullable=True
     )
 
-    tempat_lahir: Mapped[str] = mapped_column(
+    tempat_lahir: Mapped[Optional[str]] = mapped_column(
         String(100),
-        nullable=False
+        nullable=True
     )
 
     jenis_kelamin: Mapped[JenisKelamin] = mapped_column(
@@ -51,19 +52,19 @@ class SiswaProfile(Base):
         nullable=False
     )
 
-    alamat: Mapped[str] = mapped_column(
+    alamat: Mapped[Optional[str]] = mapped_column(
         String(500),
-        nullable=False
+        nullable=True
     )
 
-    nama_wali: Mapped[str] = mapped_column(
+    nama_wali: Mapped[Optional[str]] = mapped_column(
         String(225),
-        nullable=False
+        nullable=True
     )
 
-    nik: Mapped[str] = mapped_column(
+    nik: Mapped[Optional[str]] = mapped_column(
         String(20),
-        nullable=False
+        nullable=True
     )
 
     kelas_jurusan: Mapped[str] = mapped_column(
@@ -71,9 +72,9 @@ class SiswaProfile(Base):
         nullable=False
     )
 
-    tahun_masuk: Mapped[int] = mapped_column(
+    tahun_masuk: Mapped[Optional[int]] = mapped_column(
         Integer,
-        nullable=False
+        nullable=True
     )
 
     status_siswa: Mapped[StatusSiswa] = mapped_column(

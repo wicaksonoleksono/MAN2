@@ -26,10 +26,10 @@ class GuruProfile(Base):
         nullable=False
     )
 
-    nip: Mapped[str] = mapped_column(
+    nip: Mapped[Optional[str]] = mapped_column(
         String(50),
         unique=True,
-        nullable=False
+        nullable=True
     )
 
     nama_lengkap: Mapped[str] = mapped_column(
@@ -37,14 +37,14 @@ class GuruProfile(Base):
         nullable=False
     )
 
-    dob: Mapped[str] = mapped_column(
+    dob: Mapped[Optional[str]] = mapped_column(
         String(50),
-        nullable=False
+        nullable=True
     )
 
-    tempat_lahir: Mapped[str] = mapped_column(
+    tempat_lahir: Mapped[Optional[str]] = mapped_column(
         String(100),
-        nullable=False
+        nullable=True
     )
 
     jenis_kelamin: Mapped[JenisKelamin] = mapped_column(
@@ -52,19 +52,19 @@ class GuruProfile(Base):
         nullable=False
     )
 
-    alamat: Mapped[str] = mapped_column(
+    alamat: Mapped[Optional[str]] = mapped_column(
         String(500),
-        nullable=False
+        nullable=True
     )
 
-    nik: Mapped[str] = mapped_column(
+    nik: Mapped[Optional[str]] = mapped_column(
         String(20),
-        nullable=False
+        nullable=True
     )
 
-    tahun_masuk: Mapped[int] = mapped_column(
+    tahun_masuk: Mapped[Optional[int]] = mapped_column(
         Integer,
-        nullable=False
+        nullable=True
     )
 
     status_guru: Mapped[StatusGuru] = mapped_column(
@@ -73,9 +73,9 @@ class GuruProfile(Base):
         default=StatusGuru.aktif
     )
 
-    kontak: Mapped[str] = mapped_column(
+    kontak: Mapped[Optional[str]] = mapped_column(
         String(100),
-        nullable=False
+        nullable=True
     )
 
     kewarganegaraan: Mapped[str] = mapped_column(

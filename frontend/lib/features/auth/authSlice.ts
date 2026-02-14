@@ -2,7 +2,9 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export interface User {
   user_id: string;
-  username: string;
+  username: string | null;
+  user_type: "Siswa" | "Guru" | "Admin";
+  registration_status: "Pending" | "Completed";
   created_at: string;
   last_login: string | null;
   is_active: boolean;

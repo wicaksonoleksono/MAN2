@@ -11,6 +11,7 @@ from app.dto.auth.auth_response import (
     SignupResponseDTO,
     MessageResponseDTO
 )
+from app.enums import RegistrationStatus
 
 
 class AuthService:
@@ -73,6 +74,8 @@ class AuthService:
             user_dto = UserResponseDTO(
                 user_id=user.user_id,
                 username=user.username,
+                user_type=user.user_type.value,
+                registration_status=user.registration_status.value,
                 created_at=user.created_at,
                 last_login=user.last_login,
                 is_active=user.is_active
@@ -130,6 +133,12 @@ class AuthService:
                 detail="User account is deactivated"
             )
 
+        if user.registration_status == RegistrationStatus.pending:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Registrasi belum selesai. Silakan lengkapi pendaftaran."
+            )
+
         # Update last login
         user.update_last_login()
         await self.db.commit()
@@ -144,6 +153,8 @@ class AuthService:
         user_dto = UserResponseDTO(
             user_id=user.user_id,
             username=user.username,
+            user_type=user.user_type.value,
+            registration_status=user.registration_status.value,
             created_at=user.created_at,
             last_login=user.last_login,
             is_active=user.is_active
@@ -201,6 +212,8 @@ class AuthService:
         return UserResponseDTO(
             user_id=user.user_id,
             username=user.username,
+            user_type=user.user_type.value,
+            registration_status=user.registration_status.value,
             created_at=user.created_at,
             last_login=user.last_login,
             is_active=user.is_active

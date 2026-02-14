@@ -8,7 +8,9 @@ class UserResponseDTO(BaseModel):
     """Response DTO for user data"""
 
     user_id: UUID = Field(..., description="User unique ID")
-    username: str = Field(..., description="Username")
+    username: Optional[str] = Field(None, description="Username")
+    user_type: str = Field(..., description="User role (Siswa, Guru, Admin)")
+    registration_status: str = Field(..., description="Registration status (Pending, Completed)")
     created_at: datetime = Field(..., description="Account creation timestamp")
     last_login: Optional[datetime] = Field(None, description="Last login timestamp")
     is_active: bool = Field(..., description="Account active status")
@@ -19,6 +21,7 @@ class UserResponseDTO(BaseModel):
             "example": {
                 "user_id": "123e4567-e89b-12d3-a456-426614174000",
                 "username": "testuser",
+                "user_type": "Siswa",
                 "created_at": "2024-01-01T00:00:00Z",
                 "last_login": "2024-01-02T12:00:00Z",
                 "is_active": True
@@ -44,6 +47,7 @@ class TokenResponseDTO(BaseModel):
                 "user": {
                     "user_id": "123e4567-e89b-12d3-a456-426614174000",
                     "username": "testuser",
+                    "user_type": "Siswa",
                     "created_at": "2024-01-01T00:00:00Z",
                     "last_login": "2024-01-02T12:00:00Z",
                     "is_active": True
@@ -66,6 +70,7 @@ class SignupResponseDTO(BaseModel):
                 "user": {
                     "user_id": "123e4567-e89b-12d3-a456-426614174000",
                     "username": "testuser",
+                    "user_type": "Siswa",
                     "created_at": "2024-01-01T00:00:00Z",
                     "last_login": None,
                     "is_active": True
