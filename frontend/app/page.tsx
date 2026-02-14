@@ -70,7 +70,7 @@ export default function IndexPage() {
           {carouselSlides.map((slide) => (
             <CarouselItem key={slide.title}>
               <Card className={`${slide.bg} ${slide.fg} border-none`}>
-                <CardContent className="flex min-h-[260px] flex-col items-center justify-center p-6 text-center md:min-h-[320px]">
+                <CardContent className="flex min-h-[360px] flex-col items-center justify-center p-6 text-center md:min-h-[480px]">
                   <h2 className="text-2xl font-bold md:text-4xl">
                     {slide.title}
                   </h2>
