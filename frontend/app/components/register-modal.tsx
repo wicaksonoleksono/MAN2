@@ -9,14 +9,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { useDebounce } from "@/lib/hooks/useDebounce";
 import {
-  useLazySearchPendingStudentsQuery,
-  useLazySearchPendingTeachersQuery,
+  useLazyLookupStudentByNisQuery,
+  useLazyLookupTeacherByNipQuery,
   useClaimStudentMutation,
   useClaimTeacherMutation,
 } from "@/lib/features/registration/registrationApi";
-import type { PendingStudentDTO, PendingTeacherDTO } from "@/lib/features/registration/types";
+import type {
+  StudentLookupResponse,
+  TeacherLookupResponse,
+} from "@/lib/features/registration/types";
 
 type Role = "siswa" | "guru";
 type Step = 1 | 2 | 3;
@@ -31,15 +33,12 @@ export default function RegisterModal({ open, onOpenChange, onSwitchToLogin }: R
   const [step, setStep] = useState<Step>(1);
   const [role, setRole] = useState<Role | null>(null);
 
-  const [searchInput, setSearchInput] = useState("");
-  const debouncedSearch = useDebounce(searchInput, 300);
-  const [selectedStudent, setSelectedStudent] = useState<PendingStudentDTO | null>(null);
-  const [selectedTeacher, setSelectedTeacher] = useState<PendingTeacherDTO | null>(null);
+  const [nisInput, setNisInput] = useState("");
+  const [nipInput, setNipInput] = useState("");
+  const [lookupResult, setLookupResult] = useState<StudentLookupResponse | TeacherLookupResponse | null>(null);
 
-  const [searchStudents, { data: studentResults, isFetching: studentsFetching }] =
-    useLazySearchPendingStudentsQuery();
-  const [searchTeachers, { data: teacherResults, isFetching: teachersFetching }] =
-    useLazySearchPendingTeachersQuery();
+  const [lookupStudent, { isFetching: studentLookupFetching }] = useLazyLookupStudentByNisQuery();
+  const [lookupTeacher, { isFetching: teacherLookupFetching }] = useLazyLookupTeacherByNipQuery();
   const [claimStudent, { isLoading: claimingStudent }] = useClaimStudentMutation();
   const [claimTeacher, { isLoading: claimingTeacher }] = useClaimTeacherMutation();
 
@@ -47,17 +46,6 @@ export default function RegisterModal({ open, onOpenChange, onSwitchToLogin }: R
     username: "",
     password: "",
     confirmPassword: "",
-    nis: "",
-    nip: "",
-    dob: "",
-    tempat_lahir: "",
-    alamat: "",
-    nama_wali: "",
-    nik: "",
-    tahun_masuk: "",
-    kontak: "",
-    mata_pelajaran: "",
-    pendidikan_terakhir: "",
   });
 
   const [error, setError] = useState("");
@@ -66,15 +54,10 @@ export default function RegisterModal({ open, onOpenChange, onSwitchToLogin }: R
   const resetAll = () => {
     setStep(1);
     setRole(null);
-    setSearchInput("");
-    setSelectedStudent(null);
-    setSelectedTeacher(null);
-    setFormData({
-      username: "", password: "", confirmPassword: "",
-      nis: "", nip: "", dob: "", tempat_lahir: "", alamat: "",
-      nama_wali: "", nik: "", tahun_masuk: "", kontak: "",
-      mata_pelajaran: "", pendidikan_terakhir: "",
-    });
+    setNisInput("");
+    setNipInput("");
+    setLookupResult(null);
+    setFormData({ username: "", password: "", confirmPassword: "" });
     setError("");
     setSuccess("");
   };
@@ -84,24 +67,43 @@ export default function RegisterModal({ open, onOpenChange, onSwitchToLogin }: R
     onOpenChange(isOpen);
   };
 
-  const handleSearchChange = (value: string) => {
-    setSearchInput(value);
-    if (value.trim().length >= 2) {
-      if (role === "siswa") searchStudents(value.trim());
-      else searchTeachers(value.trim());
-    }
-  };
-
   const handleRoleSelect = (r: Role) => {
     setRole(r);
     setStep(2);
-    setSearchInput("");
-    setSelectedStudent(null);
-    setSelectedTeacher(null);
+    setNisInput("");
+    setNipInput("");
+    setLookupResult(null);
+    setError("");
   };
 
-  const updateField = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const handleLookup = async () => {
+    setError("");
+    setLookupResult(null);
+
+    try {
+      if (role === "siswa") {
+        if (!nisInput.trim()) {
+          setError("Masukkan NIS terlebih dahulu.");
+          return;
+        }
+        const result = await lookupStudent(nisInput.trim()).unwrap();
+        setLookupResult(result);
+      } else {
+        if (!nipInput.trim()) {
+          setError("Masukkan NIP terlebih dahulu.");
+          return;
+        }
+        const result = await lookupTeacher(nipInput.trim()).unwrap();
+        setLookupResult(result);
+      }
+    } catch (err: any) {
+      setError(err.data?.detail || "Data tidak ditemukan. Hubungi admin.");
+    }
+  };
+
+  const handleConfirmIdentity = () => {
+    setStep(3);
+    setError("");
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -118,72 +120,57 @@ export default function RegisterModal({ open, onOpenChange, onSwitchToLogin }: R
     }
 
     try {
-      if (role === "siswa" && selectedStudent) {
+      if (role === "siswa") {
         const result = await claimStudent({
-          siswa_id: selectedStudent.siswa_id,
+          nis: nisInput.trim(),
           username: formData.username,
           password: formData.password,
-          nis: formData.nis,
-          dob: formData.dob,
-          tempat_lahir: formData.tempat_lahir,
-          alamat: formData.alamat,
-          nama_wali: formData.nama_wali,
-          nik: formData.nik,
-          tahun_masuk: parseInt(formData.tahun_masuk),
         }).unwrap();
         setSuccess(result.message);
-        setTimeout(() => {
-          resetAll();
-          onOpenChange(false);
-          onSwitchToLogin();
-        }, 2000);
-      } else if (role === "guru" && selectedTeacher) {
+      } else {
         const result = await claimTeacher({
-          guru_id: selectedTeacher.guru_id,
+          nip: nipInput.trim(),
           username: formData.username,
           password: formData.password,
-          nip: formData.nip,
-          dob: formData.dob,
-          tempat_lahir: formData.tempat_lahir,
-          alamat: formData.alamat,
-          nik: formData.nik,
-          tahun_masuk: parseInt(formData.tahun_masuk),
-          kontak: formData.kontak || undefined,
-          mata_pelajaran: formData.mata_pelajaran || undefined,
-          pendidikan_terakhir: formData.pendidikan_terakhir || undefined,
         }).unwrap();
         setSuccess(result.message);
-        setTimeout(() => {
-          resetAll();
-          onOpenChange(false);
-          onSwitchToLogin();
-        }, 2000);
       }
+      setTimeout(() => {
+        resetAll();
+        onOpenChange(false);
+        onSwitchToLogin();
+      }, 2000);
     } catch (err: any) {
       setError(err.data?.detail || "Pendaftaran gagal. Silakan coba lagi.");
     }
   };
 
-  const isFetching = studentsFetching || teachersFetching;
+  const isFetching = studentLookupFetching || teacherLookupFetching;
   const isClaiming = claimingStudent || claimingTeacher;
 
   const dialogTitle =
-    step === 1 ? "Daftar Akun" : step === 2 ? "Cari Nama Anda" : "Lengkapi Pendaftaran";
+    step === 1
+      ? "Daftar Akun"
+      : step === 2
+      ? role === "siswa"
+        ? "Masukkan NIS"
+        : "Masukkan NIP"
+      : "Buat Akun";
   const dialogDesc =
     step === 1
       ? "Pilih jenis akun Anda."
       : step === 2
-      ? "Ketik nama lengkap Anda untuk mencari data yang sudah didaftarkan admin."
-      : "Isi data berikut untuk menyelesaikan pendaftaran.";
+      ? role === "siswa"
+        ? "Masukkan NIS yang diberikan oleh admin sekolah."
+        : "Masukkan NIP yang diberikan oleh admin sekolah."
+      : "Buat username dan password untuk akun Anda.";
 
-  const inputClass = "w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+  const inputClass =
+    "w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        className="max-h-[85vh] overflow-y-auto"
-        onInteractOutside={(e: Event) => e.preventDefault()}
-      >
+      <DialogContent onInteractOutside={(e: Event) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDesc}</DialogDescription>
@@ -232,7 +219,10 @@ export default function RegisterModal({ open, onOpenChange, onSwitchToLogin }: R
               Sudah punya akun?{" "}
               <button
                 type="button"
-                onClick={() => { onOpenChange(false); onSwitchToLogin(); }}
+                onClick={() => {
+                  onOpenChange(false);
+                  onSwitchToLogin();
+                }}
                 className="text-primary font-medium hover:underline"
               >
                 Masuk
@@ -241,81 +231,91 @@ export default function RegisterModal({ open, onOpenChange, onSwitchToLogin }: R
           </div>
         )}
 
-        {/* Step 2: Find Name */}
+        {/* Step 2: Enter NIS/NIP + Lookup */}
         {step === 2 && (
           <div className="space-y-3">
-            <input
-              type="text"
-              placeholder="Ketik nama lengkap (minimal 2 karakter)..."
-              value={searchInput}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className={inputClass}
-              autoFocus
-            />
+            {error && (
+              <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3">
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
+            )}
 
-            {isFetching && <p className="text-sm text-muted-foreground">Mencari...</p>}
+            <div className="space-y-1">
+              <label className="text-sm font-medium">
+                {role === "siswa" ? "NIS (Nomor Induk Siswa)" : "NIP (Nomor Induk Pegawai)"}
+              </label>
+              <input
+                type="text"
+                placeholder={role === "siswa" ? "Masukkan NIS..." : "Masukkan NIP..."}
+                value={role === "siswa" ? nisInput : nipInput}
+                onChange={(e) =>
+                  role === "siswa" ? setNisInput(e.target.value) : setNipInput(e.target.value)
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleLookup();
+                  }
+                }}
+                className={inputClass}
+                autoFocus
+                disabled={isFetching}
+              />
+            </div>
 
-            {role === "siswa" && debouncedSearch.length >= 2 && !isFetching && studentResults && (
-              <div className="space-y-2 max-h-[40vh] overflow-y-auto">
-                {studentResults.items.length === 0 ? (
-                  <div className="text-center py-4">
-                    <p className="text-sm text-muted-foreground">Nama tidak ditemukan.</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Hubungi admin jika nama Anda belum terdaftar.
-                    </p>
-                  </div>
-                ) : (
-                  studentResults.items.map((student) => (
-                    <div key={student.siswa_id}
-                      className="flex items-center justify-between p-3 rounded-md border hover:bg-accent transition-colors">
-                      <div>
-                        <p className="font-medium text-sm">{student.nama_lengkap}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {student.kelas_jurusan} - {student.jenis_kelamin}
-                        </p>
-                      </div>
-                      <Button size="sm" onClick={() => { setSelectedStudent(student); setStep(3); }}>
-                        Ini Saya
-                      </Button>
-                    </div>
-                  ))
+            {/* Lookup result preview */}
+            {lookupResult && (
+              <div className="rounded-md bg-muted p-3 space-y-1">
+                <p className="text-sm font-medium">Data ditemukan:</p>
+                <p className="text-sm">
+                  <span className="font-medium">Nama:</span>{" "}
+                  {lookupResult.nama_lengkap}
+                </p>
+                {role === "siswa" && "kelas_jurusan" in lookupResult && lookupResult.kelas_jurusan && (
+                  <p className="text-sm">
+                    <span className="font-medium">Kelas:</span> {lookupResult.kelas_jurusan}
+                  </p>
+                )}
+                {lookupResult.jenis_kelamin && (
+                  <p className="text-sm">
+                    <span className="font-medium">Jenis Kelamin:</span> {lookupResult.jenis_kelamin}
+                  </p>
                 )}
               </div>
             )}
 
-            {role === "guru" && debouncedSearch.length >= 2 && !isFetching && teacherResults && (
-              <div className="space-y-2 max-h-[40vh] overflow-y-auto">
-                {teacherResults.items.length === 0 ? (
-                  <div className="text-center py-4">
-                    <p className="text-sm text-muted-foreground">Nama tidak ditemukan.</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Hubungi admin jika nama Anda belum terdaftar.
-                    </p>
-                  </div>
-                ) : (
-                  teacherResults.items.map((teacher) => (
-                    <div key={teacher.guru_id}
-                      className="flex items-center justify-between p-3 rounded-md border hover:bg-accent transition-colors">
-                      <div>
-                        <p className="font-medium text-sm">{teacher.nama_lengkap}</p>
-                        <p className="text-xs text-muted-foreground">{teacher.jenis_kelamin}</p>
-                      </div>
-                      <Button size="sm" onClick={() => { setSelectedTeacher(teacher); setStep(3); }}>
-                        Ini Saya
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            <Button variant="outline" onClick={() => { setStep(1); setSearchInput(""); }} className="w-full">
-              Kembali
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setStep(1);
+                  setNisInput("");
+                  setNipInput("");
+                  setLookupResult(null);
+                  setError("");
+                }}
+                className="flex-1"
+              >
+                Kembali
+              </Button>
+              {!lookupResult ? (
+                <Button
+                  onClick={handleLookup}
+                  disabled={isFetching}
+                  className="flex-1"
+                >
+                  {isFetching ? "Mencari..." : "Cari"}
+                </Button>
+              ) : (
+                <Button onClick={handleConfirmIdentity} className="flex-1">
+                  Ini Saya
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Step 3: Complete Registration */}
+        {/* Step 3: Set Username + Password */}
         {step === 3 && (
           <form className="space-y-4" onSubmit={handleSubmit}>
             {error && (
@@ -329,127 +329,71 @@ export default function RegisterModal({ open, onOpenChange, onSwitchToLogin }: R
               </div>
             )}
 
+            {/* Identity summary */}
             <div className="rounded-md bg-muted p-3 space-y-1">
               <p className="text-sm">
-                <span className="font-medium">Nama:</span>{" "}
-                {role === "siswa" ? selectedStudent?.nama_lengkap : selectedTeacher?.nama_lengkap}
+                <span className="font-medium">Nama:</span> {lookupResult?.nama_lengkap}
               </p>
-              {role === "siswa" && selectedStudent && (
-                <p className="text-sm">
-                  <span className="font-medium">Kelas:</span> {selectedStudent.kelas_jurusan}
-                </p>
-              )}
               <p className="text-sm">
-                <span className="font-medium">Jenis Kelamin:</span>{" "}
-                {role === "siswa" ? selectedStudent?.jenis_kelamin : selectedTeacher?.jenis_kelamin}
+                <span className="font-medium">{role === "siswa" ? "NIS" : "NIP"}:</span>{" "}
+                {role === "siswa" ? nisInput : nipInput}
               </p>
             </div>
 
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold">Akun</h3>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Username</label>
-                <input type="text" required minLength={3} value={formData.username}
-                  onChange={(e) => updateField("username", e.target.value)}
-                  className={inputClass} disabled={isClaiming || !!success} />
+                <input
+                  type="text"
+                  required
+                  minLength={3}
+                  value={formData.username}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, username: e.target.value }))}
+                  className={inputClass}
+                  disabled={isClaiming || !!success}
+                  autoFocus
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Password</label>
-                <input type="password" required minLength={6} value={formData.password}
-                  onChange={(e) => updateField("password", e.target.value)}
-                  className={inputClass} disabled={isClaiming || !!success} />
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={formData.password}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+                  className={inputClass}
+                  disabled={isClaiming || !!success}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Konfirmasi Password</label>
-                <input type="password" required minLength={6} value={formData.confirmPassword}
-                  onChange={(e) => updateField("confirmPassword", e.target.value)}
-                  className={inputClass} disabled={isClaiming || !!success} />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold">Data Diri</h3>
-
-              {role === "siswa" ? (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">NIS</label>
-                    <input type="text" required value={formData.nis}
-                      onChange={(e) => updateField("nis", e.target.value)}
-                      className={inputClass} disabled={isClaiming || !!success} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">Nama Wali</label>
-                    <input type="text" required value={formData.nama_wali}
-                      onChange={(e) => updateField("nama_wali", e.target.value)}
-                      className={inputClass} disabled={isClaiming || !!success} />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">NIP</label>
-                    <input type="text" required value={formData.nip}
-                      onChange={(e) => updateField("nip", e.target.value)}
-                      className={inputClass} disabled={isClaiming || !!success} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">Kontak</label>
-                    <input type="text" value={formData.kontak}
-                      onChange={(e) => updateField("kontak", e.target.value)}
-                      className={inputClass} disabled={isClaiming || !!success} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">Mata Pelajaran</label>
-                    <input type="text" value={formData.mata_pelajaran}
-                      onChange={(e) => updateField("mata_pelajaran", e.target.value)}
-                      className={inputClass} disabled={isClaiming || !!success} />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">Pendidikan Terakhir</label>
-                    <input type="text" value={formData.pendidikan_terakhir}
-                      onChange={(e) => updateField("pendidikan_terakhir", e.target.value)}
-                      className={inputClass} disabled={isClaiming || !!success} />
-                  </div>
-                </>
-              )}
-
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Tanggal Lahir</label>
-                <input type="text" required placeholder="DD/MM/YYYY" value={formData.dob}
-                  onChange={(e) => updateField("dob", e.target.value)}
-                  className={inputClass} disabled={isClaiming || !!success} />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Tempat Lahir</label>
-                <input type="text" required value={formData.tempat_lahir}
-                  onChange={(e) => updateField("tempat_lahir", e.target.value)}
-                  className={inputClass} disabled={isClaiming || !!success} />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Alamat</label>
-                <input type="text" required value={formData.alamat}
-                  onChange={(e) => updateField("alamat", e.target.value)}
-                  className={inputClass} disabled={isClaiming || !!success} />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">NIK</label>
-                <input type="text" required value={formData.nik}
-                  onChange={(e) => updateField("nik", e.target.value)}
-                  className={inputClass} disabled={isClaiming || !!success} />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Tahun Masuk</label>
-                <input type="number" required min={2000} max={2100} value={formData.tahun_masuk}
-                  onChange={(e) => updateField("tahun_masuk", e.target.value)}
-                  className={inputClass} disabled={isClaiming || !!success} />
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))
+                  }
+                  className={inputClass}
+                  disabled={isClaiming || !!success}
+                />
               </div>
             </div>
 
             <div className="flex gap-2">
-              <Button type="button" variant="outline"
-                onClick={() => { setStep(2); setError(""); setSuccess(""); }}
-                disabled={isClaiming || !!success} className="flex-1">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setStep(2);
+                  setError("");
+                  setSuccess("");
+                }}
+                disabled={isClaiming || !!success}
+                className="flex-1"
+              >
                 Kembali
               </Button>
               <Button type="submit" disabled={isClaiming || !!success} className="flex-1">

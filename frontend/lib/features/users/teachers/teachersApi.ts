@@ -2,8 +2,8 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import type { RootState } from "@/lib/store";
 import type {
   GuruProfile,
-  CreateGuruRequest,
-  CreateGuruResponse,
+  PreRegisterTeacherRequest,
+  PreRegisterResponse,
   UpdateGuruRequest,
   PaginatedTeachersResponse,
   ListTeachersParams,
@@ -49,9 +49,9 @@ export const teachersApi = createApi({
       providesTags: (_result, _err, guruId) => [{ type: "Teacher", id: guruId }],
     }),
 
-    // POST /teachers
-    createTeacher: builder.mutation<CreateGuruResponse, CreateGuruRequest>({
-      query: (body) => ({ url: "", method: "POST", body }),
+    // POST /teachers/pre-register
+    preRegisterTeacher: builder.mutation<PreRegisterResponse, PreRegisterTeacherRequest>({
+      query: (body) => ({ url: "/pre-register", method: "POST", body }),
       invalidatesTags: [{ type: "Teacher", id: "LIST" }],
     }),
 
@@ -85,7 +85,7 @@ export const teachersApi = createApi({
 export const {
   useListTeachersQuery,
   useGetTeacherQuery,
-  useCreateTeacherMutation,
+  usePreRegisterTeacherMutation,
   useUpdateTeacherMutation,
   useDeleteTeacherMutation,
 } = teachersApi;

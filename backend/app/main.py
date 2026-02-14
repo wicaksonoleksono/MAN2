@@ -50,6 +50,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(registration.router)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(absensi.router)
@@ -64,7 +65,6 @@ app.include_router(tugas.router)
 app.include_router(nilai.router)
 app.include_router(bobot.router)
 app.include_router(rapor.router)
-app.include_router(registration.router)
 
 
 @app.get("/", tags=["Root"])

@@ -2,6 +2,7 @@
         dev-up dev-down dev-backend dev-frontend \
         prod-build prod-up prod-down \
         db-up db-down db-shell db-reset \
+        seed-admins import-students \
         logs status clean
 
 include .env
@@ -32,6 +33,10 @@ help:
 	@echo "  make db-down        Stop only the database"
 	@echo "  make db-shell       Open PostgreSQL shell"
 	@echo "  make db-reset       Reset database (deletes all data)"
+	@echo ""
+	@echo "Scripts:"
+	@echo "  make seed-admins              Seed admin accounts (admin1-3)"
+	@echo "  make import-students FILE=x   Import students from xlsx"
 	@echo ""
 	@echo "Other:"
 	@echo "  make logs           Stream logs for all running services"
@@ -98,6 +103,15 @@ db-reset:
 		$(DEV) up -d postgres-db; \
 		echo "Database reset complete"; \
 	fi
+
+# ── Scripts ──────────────────────────────────────────────────────────────────
+
+seed-admins:
+	$(DEV) exec backend python scripts/seed_admins.py
+
+import-students:
+	@if [ -z "$(FILE)" ]; then echo "Usage: make import-students FILE=\"/path/to/file.xlsx\""; exit 1; fi
+	$(DEV) exec backend python scripts/import_students.py "$(FILE)"
 
 # ── Other ────────────────────────────────────────────────────────────────────
 

@@ -7,12 +7,10 @@ from app.dependencies import require_role
 from app.enums import UserType
 from app.services.userMan_service import UserManagementService
 from app.dto.userMan.userman_request import (
-    CreateStudentRequestDTO, UpdateStudentRequestDTO,
-    CreateGuruRequestDTO, UpdateGuruRequestDTO,
+    UpdateStudentRequestDTO, UpdateGuruRequestDTO,
 )
 from app.dto.userMan.userman_response import (
-    CreateStudentResponseDTO, StudentProfileResponseDTO,
-    CreateGuruResponseDTO, GuruProfileResponseDTO,
+    StudentProfileResponseDTO, GuruProfileResponseDTO,
     PaginatedStudentsResponse, PaginatedTeachersResponse, MessageResponseDTO,
 )
 from app.services.registration_service import RegistrationService
@@ -27,22 +25,6 @@ router = APIRouter(
 
 
 # ── Student Endpoints ────────────────────────────────────────────────────────
-
-
-@router.post(
-    "/students",
-    response_model=CreateStudentResponseDTO,
-    status_code=201,
-    summary="Create Student",
-    description="Create a new student account (Admin only). Username and password are auto-generated.",
-    dependencies=[Depends(require_role(UserType.admin))]
-)
-async def create_student(
-    request: CreateStudentRequestDTO,
-    db: AsyncSession = Depends(get_db),
-) -> CreateStudentResponseDTO:
-    service = UserManagementService(db)
-    return await service.create_student(request)
 
 
 @router.get(
@@ -109,22 +91,6 @@ async def delete_student(
 
 
 # ── Teacher Endpoints ────────────────────────────────────────────────────────
-
-
-@router.post(
-    "/teachers",
-    response_model=CreateGuruResponseDTO,
-    status_code=201,
-    summary="Create Teacher",
-    description="Create a new teacher account (Admin only). Username and password are auto-generated.",
-    dependencies=[Depends(require_role(UserType.admin))]
-)
-async def create_teacher(
-    request: CreateGuruRequestDTO,
-    db: AsyncSession = Depends(get_db),
-) -> CreateGuruResponseDTO:
-    service = UserManagementService(db)
-    return await service.create_guru(request)
 
 
 @router.get(

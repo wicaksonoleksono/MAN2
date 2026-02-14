@@ -10,22 +10,15 @@ class StudentProfileResponseDTO(BaseModel):
     nama_lengkap: str
     dob: Optional[str] = None
     tempat_lahir: Optional[str] = None
-    jenis_kelamin: JenisKelamin
+    jenis_kelamin: Optional[JenisKelamin] = None
     alamat: Optional[str] = None
     nama_wali: Optional[str] = None
     nik: Optional[str] = None
-    kelas_jurusan: str
+    kelas_jurusan: Optional[str] = None
     tahun_masuk: Optional[int] = None
     status_siswa: StatusSiswa
-    kontak: str
+    kontak: Optional[str] = None
     kewarganegaraan: str
-
-
-class CreateStudentResponseDTO(BaseModel):
-    message: str
-    username: str
-    generated_password: str
-    profile: StudentProfileResponseDTO
 
 
 class GuruProfileResponseDTO(BaseModel):
@@ -34,7 +27,7 @@ class GuruProfileResponseDTO(BaseModel):
     nama_lengkap: str
     dob: Optional[str] = None
     tempat_lahir: Optional[str] = None
-    jenis_kelamin: JenisKelamin
+    jenis_kelamin: Optional[JenisKelamin] = None
     alamat: Optional[str] = None
     nik: Optional[str] = None
     tahun_masuk: Optional[int] = None
@@ -45,13 +38,6 @@ class GuruProfileResponseDTO(BaseModel):
     bidang_wakasek: Optional[BidangWakasek]
     mata_pelajaran: Optional[str]
     pendidikan_terakhir: Optional[str]
-
-
-class CreateGuruResponseDTO(BaseModel):
-    message: str
-    username: str
-    generated_password: str
-    profile: GuruProfileResponseDTO
 
 
 class PaginatedStudentsResponse(BaseModel):

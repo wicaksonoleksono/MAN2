@@ -1,7 +1,7 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import type {
-  PendingStudentSearchResponse,
-  PendingTeacherSearchResponse,
+  StudentLookupResponse,
+  TeacherLookupResponse,
   ClaimStudentRequest,
   ClaimTeacherRequest,
   ClaimResponse,
@@ -15,11 +15,11 @@ export const registrationApi = createApi({
     baseUrl: `${API_BASE}/api/v1/registration`,
   }),
   endpoints: (builder) => ({
-    searchPendingStudents: builder.query<PendingStudentSearchResponse, string>({
-      query: (name) => `/students/search?name=${encodeURIComponent(name)}`,
+    lookupStudentByNis: builder.query<StudentLookupResponse, string>({
+      query: (nis) => `/students/lookup?nis=${encodeURIComponent(nis)}`,
     }),
-    searchPendingTeachers: builder.query<PendingTeacherSearchResponse, string>({
-      query: (name) => `/teachers/search?name=${encodeURIComponent(name)}`,
+    lookupTeacherByNip: builder.query<TeacherLookupResponse, string>({
+      query: (nip) => `/teachers/lookup?nip=${encodeURIComponent(nip)}`,
     }),
     claimStudent: builder.mutation<ClaimResponse, ClaimStudentRequest>({
       query: (body) => ({
@@ -39,8 +39,8 @@ export const registrationApi = createApi({
 });
 
 export const {
-  useLazySearchPendingStudentsQuery,
-  useLazySearchPendingTeachersQuery,
+  useLazyLookupStudentByNisQuery,
+  useLazyLookupTeacherByNipQuery,
   useClaimStudentMutation,
   useClaimTeacherMutation,
 } = registrationApi;

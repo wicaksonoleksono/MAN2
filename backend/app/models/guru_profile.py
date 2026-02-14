@@ -47,9 +47,9 @@ class GuruProfile(Base):
         nullable=True
     )
 
-    jenis_kelamin: Mapped[JenisKelamin] = mapped_column(
+    jenis_kelamin: Mapped[Optional[JenisKelamin]] = mapped_column(
         SQLAlchemyEnum(JenisKelamin, values_callable=lambda x: [e.value for e in x]),
-        nullable=False
+        nullable=True
     )
 
     alamat: Mapped[Optional[str]] = mapped_column(

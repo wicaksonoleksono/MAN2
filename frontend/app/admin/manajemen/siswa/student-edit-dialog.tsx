@@ -34,24 +34,24 @@ export function StudentEditDialog({ student, open, onClose }: StudentEditDialogP
 
   useEffect(() => {
     if (student) {
-      let dobIso = student.dob;
-      if (student.dob.includes("/")) {
-        const [day, month, year] = student.dob.split("/");
+      let dobIso = student.dob ?? "";
+      if (dobIso && dobIso.includes("/")) {
+        const [day, month, year] = dobIso.split("/");
         dobIso = `${year}-${month}-${day}`;
       }
       setForm({
-        nis: student.nis,
+        nis: student.nis ?? undefined,
         nama_lengkap: student.nama_lengkap,
-        dob: dobIso,
-        tempat_lahir: student.tempat_lahir,
-        jenis_kelamin: student.jenis_kelamin,
-        alamat: student.alamat,
-        nama_wali: student.nama_wali,
-        nik: student.nik,
-        kelas_jurusan: student.kelas_jurusan,
-        tahun_masuk: student.tahun_masuk,
+        dob: dobIso || undefined,
+        tempat_lahir: student.tempat_lahir ?? undefined,
+        jenis_kelamin: student.jenis_kelamin ?? undefined,
+        alamat: student.alamat ?? undefined,
+        nama_wali: student.nama_wali ?? undefined,
+        nik: student.nik ?? undefined,
+        kelas_jurusan: student.kelas_jurusan ?? undefined,
+        tahun_masuk: student.tahun_masuk ?? undefined,
         status_siswa: student.status_siswa,
-        kontak: student.kontak,
+        kontak: student.kontak ?? undefined,
         kewarganegaraan: student.kewarganegaraan,
       });
     }
@@ -61,8 +61,8 @@ export function StudentEditDialog({ student, open, onClose }: StudentEditDialogP
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const formatDateForApi = (isoDate: string): string => {
-    if (!isoDate.includes("-")) return isoDate;
+  const formatDateForApi = (isoDate: string | undefined): string => {
+    if (!isoDate || !isoDate.includes("-")) return isoDate ?? "";
     const [year, month, day] = isoDate.split("-");
     return `${day}/${month}/${year}`;
   };

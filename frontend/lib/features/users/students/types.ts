@@ -6,37 +6,34 @@ export interface StudentProfile {
   nama_lengkap: string;
   dob: string | null;
   tempat_lahir: string | null;
-  jenis_kelamin: JenisKelamin;
+  jenis_kelamin: JenisKelamin | null;
   alamat: string | null;
   nama_wali: string | null;
   nik: string | null;
-  kelas_jurusan: string;
+  kelas_jurusan: string | null;
   tahun_masuk: number | null;
   status_siswa: StatusSiswa;
-  kontak: string;
+  kontak: string | null;
   kewarganegaraan: string;
 }
 
-export interface CreateStudentRequest {
+export interface PreRegisterStudentRequest {
   nis: string;
   nama_lengkap: string;
-  dob: string;
-  tempat_lahir: string;
-  jenis_kelamin: JenisKelamin;
-  alamat: string;
-  nama_wali: string;
-  nik: string;
-  kelas_jurusan: string;
-  tahun_masuk: number;
-  kontak: string;
+  dob?: string;
+  tempat_lahir?: string;
+  jenis_kelamin?: JenisKelamin;
+  alamat?: string;
+  nama_wali?: string;
+  nik?: string;
+  kelas_jurusan?: string;
+  tahun_masuk?: number;
+  kontak?: string;
   kewarganegaraan?: string;
 }
 
-export interface CreateStudentResponse {
+export interface PreRegisterResponse {
   message: string;
-  username: string;
-  generated_password: string;
-  profile: StudentProfile;
 }
 
 export interface UpdateStudentRequest {

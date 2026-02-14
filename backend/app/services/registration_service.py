@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status
-from sqlalchemy import select, and_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -10,8 +10,7 @@ from app.enums import (
     UserType, RegistrationStatus, StatusSiswa, StatusGuru,
 )
 from app.dto.registration.registration_dto import (
-    PendingStudentDTO, PendingTeacherDTO,
-    PendingStudentSearchResponse, PendingTeacherSearchResponse,
+    StudentLookupResponseDTO, TeacherLookupResponseDTO,
     ClaimStudentRequestDTO, ClaimTeacherRequestDTO, ClaimResponseDTO,
     PreRegisterStudentDTO, PreRegisterTeacherDTO, PreRegisterResponseDTO,
 )
@@ -19,7 +18,7 @@ from app.dto.registration.registration_dto import (
 
 class RegistrationService:
     """
-    Handles pre-registration search and self-signup claim flow.
+    Handles pre-registration and NIS/NIP-based claim flow.
 
     Raises:
         HTTPException: 400, 404
@@ -28,112 +27,103 @@ class RegistrationService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    # ── Search ──────────────────────────────────────────────────────────────
+    # ── Lookup (Step 2: verify NIS/NIP) ──────────────────────────────────────
 
-    async def search_pending_students(self, name: str) -> PendingStudentSearchResponse:
+    async def lookup_student_by_nis(self, nis: str) -> StudentLookupResponseDTO:
         """
-        Search PENDING students by nama_lengkap (ILIKE, min 2 chars).
+        Lookup a PENDING student by NIS.
 
         Raises:
-            HTTPException: 400 if search term too short
+            HTTPException: 404 if NIS not found or not PENDING
         """
-        if len(name.strip()) < 2:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Minimal 2 karakter untuk pencarian"
-            )
-
-        pattern = f"%{name.strip()}%"
-        query = (
-            select(SiswaProfile)
-            .join(User, SiswaProfile.user_id == User.user_id)
-            .where(
-                and_(
-                    User.registration_status == RegistrationStatus.pending,
-                    SiswaProfile.nama_lengkap.ilike(pattern),
-                )
-            )
-        )
-        result = await self.db.execute(query)
-        profiles = result.scalars().all()
-
-        items = [
-            PendingStudentDTO(
-                siswa_id=p.siswa_id,
-                nama_lengkap=p.nama_lengkap,
-                kelas_jurusan=p.kelas_jurusan,
-                jenis_kelamin=p.jenis_kelamin,
-            )
-            for p in profiles
-        ]
-        return PendingStudentSearchResponse(items=items, total=len(items))
-
-    async def search_pending_teachers(self, name: str) -> PendingTeacherSearchResponse:
-        """
-        Search PENDING teachers by nama_lengkap (ILIKE, min 2 chars).
-
-        Raises:
-            HTTPException: 400 if search term too short
-        """
-        if len(name.strip()) < 2:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Minimal 2 karakter untuk pencarian"
-            )
-
-        pattern = f"%{name.strip()}%"
-        query = (
-            select(GuruProfile)
-            .join(User, GuruProfile.user_id == User.user_id)
-            .where(
-                and_(
-                    User.registration_status == RegistrationStatus.pending,
-                    GuruProfile.nama_lengkap.ilike(pattern),
-                )
-            )
-        )
-        result = await self.db.execute(query)
-        profiles = result.scalars().all()
-
-        items = [
-            PendingTeacherDTO(
-                guru_id=p.guru_id,
-                nama_lengkap=p.nama_lengkap,
-                jenis_kelamin=p.jenis_kelamin,
-            )
-            for p in profiles
-        ]
-        return PendingTeacherSearchResponse(items=items, total=len(items))
-
-    # ── Claim ───────────────────────────────────────────────────────────────
-
-    async def claim_student(self, request: ClaimStudentRequestDTO) -> ClaimResponseDTO:
-        """
-        Student claims a PENDING entry and completes registration.
-
-        Raises:
-            HTTPException: 404 if siswa not found
-            HTTPException: 400 if not PENDING, username taken, or NIS taken
-        """
-        # Load profile + user
         result = await self.db.execute(
             select(SiswaProfile)
             .options(joinedload(SiswaProfile.user))
-            .where(SiswaProfile.siswa_id == request.siswa_id)
+            .where(SiswaProfile.nis == nis)
         )
         profile = result.scalar_one_or_none()
 
         if not profile:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Data siswa tidak ditemukan"
+                detail="NIS tidak ditemukan"
+            )
+
+        if profile.user.registration_status != RegistrationStatus.pending:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Akun dengan NIS ini sudah terdaftar"
+            )
+
+        return StudentLookupResponseDTO(
+            siswa_id=profile.siswa_id,
+            nis=profile.nis,
+            nama_lengkap=profile.nama_lengkap,
+            kelas_jurusan=profile.kelas_jurusan,
+            jenis_kelamin=profile.jenis_kelamin,
+        )
+
+    async def lookup_teacher_by_nip(self, nip: str) -> TeacherLookupResponseDTO:
+        """
+        Lookup a PENDING teacher by NIP.
+
+        Raises:
+            HTTPException: 404 if NIP not found or not PENDING
+        """
+        result = await self.db.execute(
+            select(GuruProfile)
+            .options(joinedload(GuruProfile.user))
+            .where(GuruProfile.nip == nip)
+        )
+        profile = result.scalar_one_or_none()
+
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="NIP tidak ditemukan"
+            )
+
+        if profile.user.registration_status != RegistrationStatus.pending:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Akun dengan NIP ini sudah terdaftar"
+            )
+
+        return TeacherLookupResponseDTO(
+            guru_id=profile.guru_id,
+            nip=profile.nip,
+            nama_lengkap=profile.nama_lengkap,
+            jenis_kelamin=profile.jenis_kelamin,
+        )
+
+    # ── Claim (Step 3: set credentials) ──────────────────────────────────────
+
+    async def claim_student(self, request: ClaimStudentRequestDTO) -> ClaimResponseDTO:
+        """
+        Student claims a PENDING entry by NIS and sets username + password.
+
+        Raises:
+            HTTPException: 404 if NIS not found
+            HTTPException: 400 if not PENDING or username taken
+        """
+        result = await self.db.execute(
+            select(SiswaProfile)
+            .options(joinedload(SiswaProfile.user))
+            .where(SiswaProfile.nis == request.nis)
+        )
+        profile = result.scalar_one_or_none()
+
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="NIS tidak ditemukan"
             )
 
         user = profile.user
         if user.registration_status != RegistrationStatus.pending:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Akun ini sudah terdaftar"
+                detail="Akun dengan NIS ini sudah terdaftar"
             )
 
         # Check username uniqueness
@@ -146,35 +136,11 @@ class RegistrationService:
                 detail=f"Username '{request.username}' sudah digunakan"
             )
 
-        # Check NIS uniqueness
-        nis_check = await self.db.execute(
-            select(SiswaProfile).where(
-                and_(
-                    SiswaProfile.nis == request.nis,
-                    SiswaProfile.siswa_id != request.siswa_id,
-                )
-            )
-        )
-        if nis_check.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"NIS '{request.nis}' sudah digunakan"
-            )
-
-        # Update user
+        # Activate account
         user.username = request.username
         user.set_password(request.password)
         user.registration_status = RegistrationStatus.completed
         user.is_active = True
-
-        # Fill profile
-        profile.nis = request.nis
-        profile.dob = request.dob
-        profile.tempat_lahir = request.tempat_lahir
-        profile.alamat = request.alamat
-        profile.nama_wali = request.nama_wali
-        profile.nik = request.nik
-        profile.tahun_masuk = request.tahun_masuk
 
         await self.db.commit()
 
@@ -186,30 +152,30 @@ class RegistrationService:
 
     async def claim_teacher(self, request: ClaimTeacherRequestDTO) -> ClaimResponseDTO:
         """
-        Teacher claims a PENDING entry and completes registration.
+        Teacher claims a PENDING entry by NIP and sets username + password.
 
         Raises:
-            HTTPException: 404 if guru not found
-            HTTPException: 400 if not PENDING, username taken, or NIP taken
+            HTTPException: 404 if NIP not found
+            HTTPException: 400 if not PENDING or username taken
         """
         result = await self.db.execute(
             select(GuruProfile)
             .options(joinedload(GuruProfile.user))
-            .where(GuruProfile.guru_id == request.guru_id)
+            .where(GuruProfile.nip == request.nip)
         )
         profile = result.scalar_one_or_none()
 
         if not profile:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Data guru tidak ditemukan"
+                detail="NIP tidak ditemukan"
             )
 
         user = profile.user
         if user.registration_status != RegistrationStatus.pending:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Akun ini sudah terdaftar"
+                detail="Akun dengan NIP ini sudah terdaftar"
             )
 
         # Check username uniqueness
@@ -222,40 +188,11 @@ class RegistrationService:
                 detail=f"Username '{request.username}' sudah digunakan"
             )
 
-        # Check NIP uniqueness
-        nip_check = await self.db.execute(
-            select(GuruProfile).where(
-                and_(
-                    GuruProfile.nip == request.nip,
-                    GuruProfile.guru_id != request.guru_id,
-                )
-            )
-        )
-        if nip_check.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"NIP '{request.nip}' sudah digunakan"
-            )
-
-        # Update user
+        # Activate account
         user.username = request.username
         user.set_password(request.password)
         user.registration_status = RegistrationStatus.completed
         user.is_active = True
-
-        # Fill profile
-        profile.nip = request.nip
-        profile.dob = request.dob
-        profile.tempat_lahir = request.tempat_lahir
-        profile.alamat = request.alamat
-        profile.nik = request.nik
-        profile.tahun_masuk = request.tahun_masuk
-        if request.kontak is not None:
-            profile.kontak = request.kontak
-        if request.mata_pelajaran is not None:
-            profile.mata_pelajaran = request.mata_pelajaran
-        if request.pendidikan_terakhir is not None:
-            profile.pendidikan_terakhir = request.pendidikan_terakhir
 
         await self.db.commit()
 
@@ -269,11 +206,20 @@ class RegistrationService:
 
     async def pre_register_student(self, request: PreRegisterStudentDTO) -> PreRegisterResponseDTO:
         """
-        Admin creates a PENDING student entry (name + gender + kelas only).
+        Admin creates a PENDING student entry (nis + nama required, rest optional).
 
         Raises:
-            HTTPException: 500 if database error
+            HTTPException: 400 if NIS already exists
         """
+        nis_check = await self.db.execute(
+            select(SiswaProfile).where(SiswaProfile.nis == request.nis)
+        )
+        if nis_check.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"NIS '{request.nis}' sudah digunakan"
+            )
+
         user = User(
             user_type=UserType.siswa,
             registration_status=RegistrationStatus.pending,
@@ -284,15 +230,22 @@ class RegistrationService:
         self.db.add(user)
         await self.db.flush()
 
+        profile_data = request.model_dump(exclude_unset=True)
         profile = SiswaProfile(
             user_id=user.user_id,
             nama_lengkap=request.nama_lengkap,
-            jenis_kelamin=request.jenis_kelamin,
-            kelas_jurusan=request.kelas_jurusan,
-            kontak=request.kontak or "",
+            nis=request.nis,
             status_siswa=StatusSiswa.aktif,
-            kewarganegaraan="Indonesia",
+            kewarganegaraan=profile_data.get("kewarganegaraan", "Indonesia"),
         )
+        optional_fields = [
+            "dob", "tempat_lahir", "jenis_kelamin", "alamat",
+            "nama_wali", "nik", "kelas_jurusan", "tahun_masuk", "kontak",
+        ]
+        for field in optional_fields:
+            if field in profile_data:
+                setattr(profile, field, profile_data[field])
+
         self.db.add(profile)
         await self.db.commit()
 
@@ -302,11 +255,20 @@ class RegistrationService:
 
     async def pre_register_teacher(self, request: PreRegisterTeacherDTO) -> PreRegisterResponseDTO:
         """
-        Admin creates a PENDING teacher entry (name + gender only).
+        Admin creates a PENDING teacher entry (nip + nama required, rest optional).
 
         Raises:
-            HTTPException: 500 if database error
+            HTTPException: 400 if NIP already exists
         """
+        nip_check = await self.db.execute(
+            select(GuruProfile).where(GuruProfile.nip == request.nip)
+        )
+        if nip_check.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"NIP '{request.nip}' sudah digunakan"
+            )
+
         user = User(
             user_type=UserType.guru,
             registration_status=RegistrationStatus.pending,
@@ -317,14 +279,23 @@ class RegistrationService:
         self.db.add(user)
         await self.db.flush()
 
+        profile_data = request.model_dump(exclude_unset=True)
         profile = GuruProfile(
             user_id=user.user_id,
             nama_lengkap=request.nama_lengkap,
-            jenis_kelamin=request.jenis_kelamin,
-            kontak=request.kontak or "",
+            nip=request.nip,
             status_guru=StatusGuru.aktif,
-            kewarganegaraan="Indonesia",
+            kewarganegaraan=profile_data.get("kewarganegaraan", "Indonesia"),
         )
+        optional_fields = [
+            "dob", "tempat_lahir", "jenis_kelamin", "alamat",
+            "nik", "tahun_masuk", "kontak", "structural_role",
+            "bidang_wakasek", "mata_pelajaran", "pendidikan_terakhir",
+        ]
+        for field in optional_fields:
+            if field in profile_data:
+                setattr(profile, field, profile_data[field])
+
         self.db.add(profile)
         await self.db.commit()
 

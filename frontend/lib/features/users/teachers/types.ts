@@ -11,7 +11,7 @@ export interface GuruProfile {
   nama_lengkap: string;
   dob: string | null;
   tempat_lahir: string | null;
-  jenis_kelamin: JenisKelamin;
+  jenis_kelamin: JenisKelamin | null;
   alamat: string | null;
   nik: string | null;
   tahun_masuk: number | null;
@@ -24,16 +24,16 @@ export interface GuruProfile {
   pendidikan_terakhir: string | null;
 }
 
-export interface CreateGuruRequest {
+export interface PreRegisterTeacherRequest {
   nip: string;
   nama_lengkap: string;
-  dob: string;
-  tempat_lahir: string;
-  jenis_kelamin: JenisKelamin;
-  alamat: string;
-  nik: string;
-  tahun_masuk: number;
-  kontak: string;
+  dob?: string;
+  tempat_lahir?: string;
+  jenis_kelamin?: JenisKelamin;
+  alamat?: string;
+  nik?: string;
+  tahun_masuk?: number;
+  kontak?: string;
   kewarganegaraan?: string;
   structural_role?: StructuralRole;
   bidang_wakasek?: BidangWakasek | null;
@@ -41,11 +41,8 @@ export interface CreateGuruRequest {
   pendidikan_terakhir?: string | null;
 }
 
-export interface CreateGuruResponse {
+export interface PreRegisterResponse {
   message: string;
-  username: string;
-  generated_password: string;
-  profile: GuruProfile;
 }
 
 export interface UpdateGuruRequest {

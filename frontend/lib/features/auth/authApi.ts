@@ -3,14 +3,12 @@ import type { RootState } from "@/lib/store";
 import type { User } from "./authSlice";
 import type {
   UserType,
-  SignupRequest,
   LoginRequest,
-  SignupResponse,
   TokenResponse,
   MessageResponse,
 } from "./types";
 
-export type { UserType, SignupRequest, LoginRequest, SignupResponse, TokenResponse, MessageResponse };
+export type { UserType, LoginRequest, TokenResponse, MessageResponse };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:2385";
 
@@ -27,13 +25,6 @@ export const authApi = createApi({
     },
   }),
   endpoints: (builder) => ({
-    signup: builder.mutation<SignupResponse, SignupRequest>({
-      query: (body) => ({
-        url: "/signup",
-        method: "POST",
-        body,
-      }),
-    }),
     login: builder.mutation<TokenResponse, LoginRequest>({
       query: (body) => ({
         url: "/login",
@@ -54,7 +45,6 @@ export const authApi = createApi({
 });
 
 export const {
-  useSignupMutation,
   useLoginMutation,
   useVerifyQuery,
   useLogoutMutation,

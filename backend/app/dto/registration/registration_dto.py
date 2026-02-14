@@ -1,68 +1,44 @@
 from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, Field
-from app.enums import JenisKelamin
+from app.enums import JenisKelamin, StructuralRole, BidangWakasek
 
 
-# ── Search responses (public, no auth) ──────────────────────────────────────
+# ── Lookup responses (Step 2: NIS/NIP lookup confirms identity) ──────────────
 
 
-class PendingStudentDTO(BaseModel):
+class StudentLookupResponseDTO(BaseModel):
     siswa_id: UUID
+    nis: str
     nama_lengkap: str
-    kelas_jurusan: str
-    jenis_kelamin: JenisKelamin
+    kelas_jurusan: Optional[str] = None
+    jenis_kelamin: Optional[JenisKelamin] = None
 
     model_config = {"from_attributes": True}
 
 
-class PendingTeacherDTO(BaseModel):
+class TeacherLookupResponseDTO(BaseModel):
     guru_id: UUID
+    nip: str
     nama_lengkap: str
-    jenis_kelamin: JenisKelamin
+    jenis_kelamin: Optional[JenisKelamin] = None
 
     model_config = {"from_attributes": True}
 
 
-class PendingStudentSearchResponse(BaseModel):
-    items: list[PendingStudentDTO]
-    total: int
-
-
-class PendingTeacherSearchResponse(BaseModel):
-    items: list[PendingTeacherDTO]
-    total: int
-
-
-# ── Claim requests ──────────────────────────────────────────────────────────
+# ── Claim requests (Step 3: set credentials) ────────────────────────────────
 
 
 class ClaimStudentRequestDTO(BaseModel):
-    siswa_id: UUID = Field(..., description="ID profil siswa yang diklaim")
+    nis: str = Field(..., min_length=1, max_length=50, description="NIS yang sudah didaftarkan admin")
     username: str = Field(..., min_length=3, max_length=100)
     password: str = Field(..., min_length=6, max_length=128)
-    nis: str = Field(..., min_length=1, max_length=50)
-    dob: str = Field(..., min_length=1, max_length=50)
-    tempat_lahir: str = Field(..., min_length=1, max_length=100)
-    alamat: str = Field(..., min_length=1, max_length=500)
-    nama_wali: str = Field(..., min_length=2, max_length=225)
-    nik: str = Field(..., min_length=1, max_length=20)
-    tahun_masuk: int = Field(..., ge=2000, le=2100)
 
 
 class ClaimTeacherRequestDTO(BaseModel):
-    guru_id: UUID = Field(..., description="ID profil guru yang diklaim")
+    nip: str = Field(..., min_length=1, max_length=50, description="NIP yang sudah didaftarkan admin")
     username: str = Field(..., min_length=3, max_length=100)
     password: str = Field(..., min_length=6, max_length=128)
-    nip: str = Field(..., min_length=1, max_length=50)
-    dob: str = Field(..., min_length=1, max_length=50)
-    tempat_lahir: str = Field(..., min_length=1, max_length=100)
-    alamat: str = Field(..., min_length=1, max_length=500)
-    nik: str = Field(..., min_length=1, max_length=20)
-    tahun_masuk: int = Field(..., ge=2000, le=2100)
-    kontak: Optional[str] = Field(default=None, max_length=100)
-    mata_pelajaran: Optional[str] = Field(default=None, max_length=100)
-    pendidikan_terakhir: Optional[str] = Field(default=None, max_length=100)
 
 
 class ClaimResponseDTO(BaseModel):
@@ -75,16 +51,35 @@ class ClaimResponseDTO(BaseModel):
 
 
 class PreRegisterStudentDTO(BaseModel):
+    nis: str = Field(..., min_length=1, max_length=50)
     nama_lengkap: str = Field(..., min_length=2, max_length=225)
-    jenis_kelamin: JenisKelamin
-    kelas_jurusan: str = Field(..., min_length=1, max_length=100)
+    dob: Optional[str] = Field(default=None, min_length=1, max_length=50)
+    tempat_lahir: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    jenis_kelamin: Optional[JenisKelamin] = None
+    alamat: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    nama_wali: Optional[str] = Field(default=None, min_length=2, max_length=225)
+    nik: Optional[str] = Field(default=None, min_length=1, max_length=20)
+    kelas_jurusan: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    tahun_masuk: Optional[int] = Field(default=None, ge=2000, le=2100)
     kontak: Optional[str] = Field(default=None, max_length=100)
+    kewarganegaraan: Optional[str] = Field(default=None, max_length=50)
 
 
 class PreRegisterTeacherDTO(BaseModel):
+    nip: str = Field(..., min_length=1, max_length=50)
     nama_lengkap: str = Field(..., min_length=2, max_length=225)
-    jenis_kelamin: JenisKelamin
+    dob: Optional[str] = Field(default=None, min_length=1, max_length=50)
+    tempat_lahir: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    jenis_kelamin: Optional[JenisKelamin] = None
+    alamat: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    nik: Optional[str] = Field(default=None, min_length=1, max_length=20)
+    tahun_masuk: Optional[int] = Field(default=None, ge=2000, le=2100)
     kontak: Optional[str] = Field(default=None, max_length=100)
+    kewarganegaraan: Optional[str] = Field(default=None, max_length=50)
+    structural_role: Optional[StructuralRole] = None
+    bidang_wakasek: Optional[BidangWakasek] = None
+    mata_pelajaran: Optional[str] = Field(default=None, max_length=100)
+    pendidikan_terakhir: Optional[str] = Field(default=None, max_length=100)
 
 
 class PreRegisterResponseDTO(BaseModel):

@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.database import get_db
 from app.services.registration_service import RegistrationService
 from app.dto.registration.registration_dto import (
-    PendingStudentSearchResponse, PendingTeacherSearchResponse,
+    StudentLookupResponseDTO, TeacherLookupResponseDTO,
     ClaimStudentRequestDTO, ClaimTeacherRequestDTO, ClaimResponseDTO,
 )
 
@@ -13,39 +13,14 @@ router = APIRouter(
 )
 
 
-@router.get(
-    "/students/search",
-    response_model=PendingStudentSearchResponse,
-    summary="Search Pending Students",
-    description="Search for pre-registered students by name (no auth required).",
-)
-async def search_pending_students(
-    name: str = Query(..., min_length=2, description="Nama siswa (minimal 2 karakter)"),
-    db: AsyncSession = Depends(get_db),
-) -> PendingStudentSearchResponse:
-    service = RegistrationService(db)
-    return await service.search_pending_students(name)
-
-
-@router.get(
-    "/teachers/search",
-    response_model=PendingTeacherSearchResponse,
-    summary="Search Pending Teachers",
-    description="Search for pre-registered teachers by name (no auth required).",
-)
-async def search_pending_teachers(
-    name: str = Query(..., min_length=2, description="Nama guru (minimal 2 karakter)"),
-    db: AsyncSession = Depends(get_db),
-) -> PendingTeacherSearchResponse:
-    service = RegistrationService(db)
-    return await service.search_pending_teachers(name)
+# ── Claim (set credentials) ─────────────────────────────────────────────────
 
 
 @router.post(
     "/students/claim",
     response_model=ClaimResponseDTO,
     summary="Claim Student Registration",
-    description="Student claims a pre-registered entry and completes registration (no auth required).",
+    description="Student sets username + password to activate their account (no auth required).",
 )
 async def claim_student(
     request: ClaimStudentRequestDTO,
@@ -59,7 +34,7 @@ async def claim_student(
     "/teachers/claim",
     response_model=ClaimResponseDTO,
     summary="Claim Teacher Registration",
-    description="Teacher claims a pre-registered entry and completes registration (no auth required).",
+    description="Teacher sets username + password to activate their account (no auth required).",
 )
 async def claim_teacher(
     request: ClaimTeacherRequestDTO,
@@ -67,3 +42,34 @@ async def claim_teacher(
 ) -> ClaimResponseDTO:
     service = RegistrationService(db)
     return await service.claim_teacher(request)
+
+
+# ── Lookup by NIS/NIP ───────────────────────────────────────────────────────
+
+
+@router.get(
+    "/students/lookup",
+    response_model=StudentLookupResponseDTO,
+    summary="Lookup Student by NIS",
+    description="Verify a student NIS and return their profile preview (no auth required).",
+)
+async def lookup_student(
+    nis: str = Query(..., min_length=1, description="NIS yang diberikan admin"),
+    db: AsyncSession = Depends(get_db),
+) -> StudentLookupResponseDTO:
+    service = RegistrationService(db)
+    return await service.lookup_student_by_nis(nis)
+
+
+@router.get(
+    "/teachers/lookup",
+    response_model=TeacherLookupResponseDTO,
+    summary="Lookup Teacher by NIP",
+    description="Verify a teacher NIP and return their profile preview (no auth required).",
+)
+async def lookup_teacher(
+    nip: str = Query(..., min_length=1, description="NIP yang diberikan admin"),
+    db: AsyncSession = Depends(get_db),
+) -> TeacherLookupResponseDTO:
+    service = RegistrationService(db)
+    return await service.lookup_teacher_by_nip(nip)

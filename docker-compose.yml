@@ -50,7 +50,7 @@ services:
     networks:
       - simandaya-network
     volumes:
-      - ./backend/app:/app/app
+      - ./backend:/app
     # APP_RELOAD controls --reload (dev) vs --workers 4 (prod)
     command: >
       sh -c "

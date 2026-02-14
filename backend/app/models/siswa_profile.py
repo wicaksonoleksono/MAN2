@@ -47,9 +47,9 @@ class SiswaProfile(Base):
         nullable=True
     )
 
-    jenis_kelamin: Mapped[JenisKelamin] = mapped_column(
+    jenis_kelamin: Mapped[Optional[JenisKelamin]] = mapped_column(
         SQLAlchemyEnum(JenisKelamin, values_callable=lambda x: [e.value for e in x]),
-        nullable=False
+        nullable=True
     )
 
     alamat: Mapped[Optional[str]] = mapped_column(
@@ -67,9 +67,9 @@ class SiswaProfile(Base):
         nullable=True
     )
 
-    kelas_jurusan: Mapped[str] = mapped_column(
+    kelas_jurusan: Mapped[Optional[str]] = mapped_column(
         String(100),
-        nullable=False
+        nullable=True
     )
 
     tahun_masuk: Mapped[Optional[int]] = mapped_column(
@@ -83,9 +83,9 @@ class SiswaProfile(Base):
         default=StatusSiswa.aktif
     )
 
-    kontak: Mapped[str] = mapped_column(
+    kontak: Mapped[Optional[str]] = mapped_column(
         String(100),
-        nullable=False
+        nullable=True
     )
 
     kewarganegaraan: Mapped[str] = mapped_column(

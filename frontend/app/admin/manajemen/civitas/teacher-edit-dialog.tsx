@@ -59,22 +59,22 @@ export function TeacherEditDialog({ teacher, open, onClose }: TeacherEditDialogP
 
   useEffect(() => {
     if (teacher) {
-      let dobIso = teacher.dob;
-      if (teacher.dob.includes("/")) {
-        const [day, month, year] = teacher.dob.split("/");
+      let dobIso = teacher.dob ?? "";
+      if (dobIso && dobIso.includes("/")) {
+        const [day, month, year] = dobIso.split("/");
         dobIso = `${year}-${month}-${day}`;
       }
       setForm({
-        nip: teacher.nip,
+        nip: teacher.nip ?? undefined,
         nama_lengkap: teacher.nama_lengkap,
-        dob: dobIso,
-        tempat_lahir: teacher.tempat_lahir,
-        jenis_kelamin: teacher.jenis_kelamin,
-        alamat: teacher.alamat,
-        nik: teacher.nik,
-        tahun_masuk: teacher.tahun_masuk,
+        dob: dobIso || undefined,
+        tempat_lahir: teacher.tempat_lahir ?? undefined,
+        jenis_kelamin: teacher.jenis_kelamin ?? undefined,
+        alamat: teacher.alamat ?? undefined,
+        nik: teacher.nik ?? undefined,
+        tahun_masuk: teacher.tahun_masuk ?? undefined,
         status_guru: teacher.status_guru,
-        kontak: teacher.kontak,
+        kontak: teacher.kontak ?? undefined,
         kewarganegaraan: teacher.kewarganegaraan,
         structural_role: teacher.structural_role,
         bidang_wakasek: teacher.bidang_wakasek,
@@ -88,8 +88,8 @@ export function TeacherEditDialog({ teacher, open, onClose }: TeacherEditDialogP
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const formatDateForApi = (isoDate: string): string => {
-    if (!isoDate.includes("-")) return isoDate;
+  const formatDateForApi = (isoDate: string | undefined): string => {
+    if (!isoDate || !isoDate.includes("-")) return isoDate ?? "";
     const [year, month, day] = isoDate.split("-");
     return `${day}/${month}/${year}`;
   };

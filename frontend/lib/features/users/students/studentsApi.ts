@@ -2,8 +2,8 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import type { RootState } from "@/lib/store";
 import type {
   StudentProfile,
-  CreateStudentRequest,
-  CreateStudentResponse,
+  PreRegisterStudentRequest,
+  PreRegisterResponse,
   UpdateStudentRequest,
   PaginatedStudentsResponse,
   ListStudentsParams,
@@ -49,9 +49,9 @@ export const studentsApi = createApi({
       providesTags: (_result, _err, siswaId) => [{ type: "Student", id: siswaId }],
     }),
 
-    // POST /students
-    createStudent: builder.mutation<CreateStudentResponse, CreateStudentRequest>({
-      query: (body) => ({ url: "", method: "POST", body }),
+    // POST /students/pre-register
+    preRegisterStudent: builder.mutation<PreRegisterResponse, PreRegisterStudentRequest>({
+      query: (body) => ({ url: "/pre-register", method: "POST", body }),
       invalidatesTags: [{ type: "Student", id: "LIST" }],
     }),
 
@@ -85,7 +85,7 @@ export const studentsApi = createApi({
 export const {
   useListStudentsQuery,
   useGetStudentQuery,
-  useCreateStudentMutation,
+  usePreRegisterStudentMutation,
   useUpdateStudentMutation,
   useDeleteStudentMutation,
 } = studentsApi;
