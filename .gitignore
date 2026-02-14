@@ -7,7 +7,7 @@
 .env*.local
 backend/.env
 frontend/.env.local
-
+.playwright-mcp
 # Node / Frontend
 node_modules/
 .next/
