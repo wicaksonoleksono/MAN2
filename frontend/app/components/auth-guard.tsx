@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAppDispatch, useAppSelector } from "@/lib/hooks";
-import { logout } from "@/lib/features/auth/authSlice";
-import { useVerifyQuery } from "@/lib/features/auth/authApi";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { logout } from "@/store/slices/auth";
+import { useVerifyQuery } from "@/api/auth";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();

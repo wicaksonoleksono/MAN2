@@ -14,11 +14,11 @@ import {
   useLazyLookupTeacherByNipQuery,
   useClaimStudentMutation,
   useClaimTeacherMutation,
-} from "@/lib/features/registration/registrationApi";
+} from "@/api/registration";
 import type {
   StudentLookupResponse,
   TeacherLookupResponse,
-} from "@/lib/features/registration/types";
+} from "@/types/registration";
 
 type Role = "siswa" | "guru";
 type Step = 1 | 2 | 3;

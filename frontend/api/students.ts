@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import type { RootState } from "@/lib/store";
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { createBaseQuery } from "./base";
 import type {
   StudentProfile,
   PreRegisterStudentRequest,
@@ -7,24 +7,14 @@ import type {
   UpdateStudentRequest,
   PaginatedStudentsResponse,
   ListStudentsParams,
-  MessageResponse,
-} from "./types";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:2385";
+} from "@/types/students";
+import type { MessageResponse } from "@/types/common";
 
 export const studentsApi = createApi({
   reducerPath: "studentsApi",
-  baseQuery: fetchBaseQuery({
-    baseUrl: `${API_BASE}/api/v1/users/students`,
-    prepareHeaders: (headers, { getState }) => {
-      const token = (getState() as RootState).auth.token;
-      if (token) headers.set("authorization", `Bearer ${token}`);
-      return headers;
-    },
-  }),
+  baseQuery: createBaseQuery("/users/students"),
   tagTypes: ["Student"],
   endpoints: (builder) => ({
-    // GET /students?skip=&limit=&search=
     listStudents: builder.query<PaginatedStudentsResponse, ListStudentsParams>({
       query: ({ skip, limit, search }) => {
         let url = `?skip=${skip}&limit=${limit}`;
@@ -43,19 +33,16 @@ export const studentsApi = createApi({
           : [{ type: "Student", id: "LIST" }],
     }),
 
-    // GET /students/:siswaId
     getStudent: builder.query<StudentProfile, string>({
       query: (siswaId) => `/${siswaId}`,
       providesTags: (_result, _err, siswaId) => [{ type: "Student", id: siswaId }],
     }),
 
-    // POST /students/pre-register
     preRegisterStudent: builder.mutation<PreRegisterResponse, PreRegisterStudentRequest>({
       query: (body) => ({ url: "/pre-register", method: "POST", body }),
       invalidatesTags: [{ type: "Student", id: "LIST" }],
     }),
 
-    // PATCH /students/:siswaId
     updateStudent: builder.mutation<
       StudentProfile,
       { siswaId: string; body: UpdateStudentRequest }
@@ -71,7 +58,6 @@ export const studentsApi = createApi({
       ],
     }),
 
-    // DELETE /students/:siswaId
     deleteStudent: builder.mutation<MessageResponse, string>({
       query: (siswaId) => ({ url: `/${siswaId}`, method: "DELETE" }),
       invalidatesTags: (_result, _err, siswaId) => [

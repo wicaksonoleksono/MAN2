@@ -1,4 +1,4 @@
-import type { JenisKelamin } from "../users/enums";
+import type { JenisKelamin } from "./enums";
 
 export interface StudentLookupResponse {
   siswa_id: string;

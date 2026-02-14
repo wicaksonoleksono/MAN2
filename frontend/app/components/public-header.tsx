@@ -4,10 +4,10 @@ import { useState, useEffect, FormEvent } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import { navRoutes } from "@/lib/routes";
-import { useAppDispatch, useAppSelector } from "@/lib/hooks";
-import { logout, setCredentials } from "@/lib/features/auth/authSlice";
-import { useLogoutMutation, useLoginMutation } from "@/lib/features/auth/authApi";
+import { publicNav } from "@/config/navigation";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { logout, setCredentials } from "@/store/slices/auth";
+import { useLogoutMutation, useLoginMutation } from "@/api/auth";
 import {
   Dialog,
   DialogContent,
@@ -16,22 +16,19 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import AdminHeader from "./admin-header";
 import RegisterModal from "./register-modal";
 
-export default function Header() {
+export default function PublicHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useAppDispatch();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
-  const user = useAppSelector((state) => state.auth.user);
   const [mounted, setMounted] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [showRegisterDialog, setShowRegisterDialog] = useState(false);
   const [logoutApi] = useLogoutMutation();
 
-  // Login form state
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -83,14 +80,9 @@ export default function Header() {
     openLoginDialog();
   };
 
-  if (mounted && isAuthenticated && user?.user_type === "Admin") {
-    return <AdminHeader />;
-  }
-
   return (
     <>
       <header className="bg-[#173B52] text-[#F3F1EA] px-8 py-4 flex items-center justify-between">
-        {/* Left -- logo + school name */}
         <div className="flex items-center gap-4">
           <Image
             src="/man2.png"
@@ -109,9 +101,8 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Right -- nav + auth */}
         <nav className="flex items-center gap-8 text-sm">
-          {navRoutes.map(({ label, href }) => (
+          {publicNav.map(({ label, href }) => (
             <Link
               key={href}
               href={href}

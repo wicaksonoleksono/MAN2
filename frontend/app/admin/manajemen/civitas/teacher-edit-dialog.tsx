@@ -18,14 +18,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useUpdateTeacherMutation } from "@/lib/features/users/teachers/teachersApi";
-import type { GuruProfile, UpdateGuruRequest } from "@/lib/features/users/teachers/types";
+import { useUpdateTeacherMutation } from "@/api/teachers";
+import type { GuruProfile, UpdateGuruRequest } from "@/types/teachers";
 import type {
   JenisKelamin,
   StatusGuru,
   StructuralRole,
   BidangWakasek,
-} from "@/lib/features/users/enums";
+} from "@/types/enums";
 
 const STRUCTURAL_ROLES: StructuralRole[] = [
   "Kepala Sekolah",

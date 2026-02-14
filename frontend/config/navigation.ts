@@ -1,25 +1,33 @@
+import type { UserType } from "@/types/auth";
+
 export interface NavLink {
   label: string;
   href: string;
 }
 
-export interface NavDropdown {
+export interface NavGroup {
   label: string;
   children: NavLink[];
   width?: string;
 }
 
-export type NavItem = NavLink | NavDropdown;
+export type NavItem = NavLink | NavGroup;
 
-export function isDropdown(item: NavItem): item is NavDropdown {
+export function isNavGroup(item: NavItem): item is NavGroup {
   return "children" in item;
 }
 
-export const navRoutes: NavLink[] = [
+export const roleRoutePrefix: Record<UserType, string> = {
+  Admin: "/admin",
+  Guru: "/guru",
+  Siswa: "/siswa",
+};
+
+export const publicNav: NavLink[] = [
   { label: "Beranda", href: "/" },
 ];
 
-export const adminNavRoutes: NavItem[] = [
+export const adminNav: NavItem[] = [
   { label: "Beranda", href: "/" },
   {
     label: "Kesiswaan",
@@ -39,3 +47,12 @@ export const adminNavRoutes: NavItem[] = [
     ],
   },
 ];
+
+export function getNavForRole(role?: UserType): NavItem[] {
+  switch (role) {
+    case "Admin":
+      return adminNav;
+    default:
+      return publicNav;
+  }
+}

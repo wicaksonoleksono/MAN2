@@ -3,7 +3,7 @@ import type {
   StatusGuru,
   StructuralRole,
   BidangWakasek,
-} from "../enums";
+} from "./enums";
 
 export interface GuruProfile {
   guru_id: string;
@@ -74,8 +74,4 @@ export interface ListTeachersParams {
   skip: number;
   limit: number;
   search?: string;
-}
-
-export interface MessageResponse {
-  message: string;
 }

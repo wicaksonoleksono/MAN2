@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { teachersApi } from "@/lib/features/users/teachers/teachersApi";
+import { teachersApi } from "@/api/teachers";
 
 const usePrefetch = teachersApi.usePrefetch;
 
@@ -25,14 +25,14 @@ export function useTeacherPrecache(skip: number, total: number, search?: string)
 
     const chunkIndex = Math.floor(skip / CHUNK);
 
-    // ── Next chunk ────────────────────────────────────────────────────────────
+    // Next chunk
     const nextSkip = (chunkIndex + 1) * CHUNK;
     if (nextSkip < total) {
       const remaining = total - nextSkip;
       prefetch({ skip: nextSkip, limit: Math.min(CHUNK, remaining), search });
     }
 
-    // ── Prev chunk ────────────────────────────────────────────────────────────
+    // Prev chunk
     const prevSkip = (chunkIndex - 1) * CHUNK;
     if (prevSkip >= 0) {
       const remaining = total - prevSkip;

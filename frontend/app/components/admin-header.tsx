@@ -4,9 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { useAppDispatch } from "@/lib/hooks";
-import { logout } from "@/lib/features/auth/authSlice";
-import { useLogoutMutation } from "@/lib/features/auth/authApi";
+import { useAppDispatch } from "@/store/hooks";
+import { logout } from "@/store/slices/auth";
+import { useLogoutMutation } from "@/api/auth";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -25,7 +25,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-import { adminNavRoutes, isDropdown } from "@/lib/routes";
+import { adminNav, isNavGroup } from "@/config/navigation";
 
 const triggerStyle = "text-[#F3F1EA] bg-transparent hover:bg-white/10 data-[state=open]:bg-white/10";
 const dropdownLinkStyle = "block select-none rounded-md p-3 text-sm leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground";
@@ -64,8 +64,8 @@ export default function AdminHeader() {
         <div className="flex items-center gap-2">
           <NavigationMenu>
             <NavigationMenuList className="gap-1">
-              {adminNavRoutes.map((item) =>
-                isDropdown(item) ? (
+              {adminNav.map((item) =>
+                isNavGroup(item) ? (
                   <NavigationMenuItem key={item.label}>
                     <NavigationMenuTrigger className={triggerStyle}>
                       {item.label}

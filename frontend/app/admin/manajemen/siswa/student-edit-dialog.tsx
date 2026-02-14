@@ -18,9 +18,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useUpdateStudentMutation } from "@/lib/features/users/students/studentsApi";
-import type { StudentProfile, UpdateStudentRequest } from "@/lib/features/users/students/types";
-import type { JenisKelamin, StatusSiswa } from "@/lib/features/users/enums";
+import { useUpdateStudentMutation } from "@/api/students";
+import type { StudentProfile, UpdateStudentRequest } from "@/types/students";
+import type { JenisKelamin, StatusSiswa } from "@/types/enums";
 
 interface StudentEditDialogProps {
   student: StudentProfile | null;

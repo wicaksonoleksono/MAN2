@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import type { RootState } from "@/lib/store";
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { createBaseQuery } from "./base";
 import type {
   GuruProfile,
   PreRegisterTeacherRequest,
@@ -7,24 +7,14 @@ import type {
   UpdateGuruRequest,
   PaginatedTeachersResponse,
   ListTeachersParams,
-  MessageResponse,
-} from "./types";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:2385";
+} from "@/types/teachers";
+import type { MessageResponse } from "@/types/common";
 
 export const teachersApi = createApi({
   reducerPath: "teachersApi",
-  baseQuery: fetchBaseQuery({
-    baseUrl: `${API_BASE}/api/v1/users/teachers`,
-    prepareHeaders: (headers, { getState }) => {
-      const token = (getState() as RootState).auth.token;
-      if (token) headers.set("authorization", `Bearer ${token}`);
-      return headers;
-    },
-  }),
+  baseQuery: createBaseQuery("/users/teachers"),
   tagTypes: ["Teacher"],
   endpoints: (builder) => ({
-    // GET /teachers?skip=&limit=&search=
     listTeachers: builder.query<PaginatedTeachersResponse, ListTeachersParams>({
       query: ({ skip, limit, search }) => {
         let url = `?skip=${skip}&limit=${limit}`;
@@ -43,19 +33,16 @@ export const teachersApi = createApi({
           : [{ type: "Teacher", id: "LIST" }],
     }),
 
-    // GET /teachers/:guruId
     getTeacher: builder.query<GuruProfile, string>({
       query: (guruId) => `/${guruId}`,
       providesTags: (_result, _err, guruId) => [{ type: "Teacher", id: guruId }],
     }),
 
-    // POST /teachers/pre-register
     preRegisterTeacher: builder.mutation<PreRegisterResponse, PreRegisterTeacherRequest>({
       query: (body) => ({ url: "/pre-register", method: "POST", body }),
       invalidatesTags: [{ type: "Teacher", id: "LIST" }],
     }),
 
-    // PATCH /teachers/:guruId
     updateTeacher: builder.mutation<
       GuruProfile,
       { guruId: string; body: UpdateGuruRequest }
@@ -71,7 +58,6 @@ export const teachersApi = createApi({
       ],
     }),
 
-    // DELETE /teachers/:guruId
     deleteTeacher: builder.mutation<MessageResponse, string>({
       query: (guruId) => ({ url: `/${guruId}`, method: "DELETE" }),
       invalidatesTags: (_result, _err, guruId) => [

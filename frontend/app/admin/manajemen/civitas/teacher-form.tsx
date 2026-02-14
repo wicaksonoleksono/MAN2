@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { usePreRegisterTeacherMutation } from "@/lib/features/users/teachers/teachersApi";
-import type { PreRegisterTeacherRequest } from "@/lib/features/users/teachers/types";
+import { usePreRegisterTeacherMutation } from "@/api/teachers";
+import type { PreRegisterTeacherRequest } from "@/types/teachers";
 
 const INITIAL_STATE: PreRegisterTeacherRequest = {
   nip: "",

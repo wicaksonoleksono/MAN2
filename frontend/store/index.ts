@@ -1,10 +1,10 @@
 import type { Action, ThunkAction } from "@reduxjs/toolkit";
 import { combineSlices, configureStore } from "@reduxjs/toolkit";
-import authReducer from "./features/auth/authSlice";
-import { authApi } from "./features/auth/authApi";
-import { studentsApi } from "./features/users/students/studentsApi";
-import { teachersApi } from "./features/users/teachers/teachersApi";
-import { registrationApi } from "./features/registration/registrationApi";
+import authReducer from "./slices/auth";
+import { authApi } from "@/api/auth";
+import { studentsApi } from "@/api/students";
+import { teachersApi } from "@/api/teachers";
+import { registrationApi } from "@/api/registration";
 
 const rootReducer = combineSlices(authApi, studentsApi, teachersApi, registrationApi, {
   auth: authReducer,

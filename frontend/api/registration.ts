@@ -5,7 +5,7 @@ import type {
   ClaimStudentRequest,
   ClaimTeacherRequest,
   ClaimResponse,
-} from "./types";
+} from "@/types/registration";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:2385";
 

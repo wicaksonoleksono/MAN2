@@ -1,14 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import type { User } from '@/types/auth';
 
-export interface User {
-  user_id: string;
-  username: string | null;
-  user_type: "Siswa" | "Guru" | "Admin";
-  registration_status: "Pending" | "Completed";
-  created_at: string;
-  last_login: string | null;
-  is_active: boolean;
-}
+export type { User };
 
 interface AuthState {
   token: string | null;
@@ -16,7 +9,15 @@ interface AuthState {
   isAuthenticated: boolean;
 }
 
-// Load initial state from localStorage (if available)
+function setCookie(name: string, value: string, days: number) {
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires};path=/`;
+}
+
+function deleteCookie(name: string) {
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+}
+
 const loadAuthFromStorage = (): AuthState => {
   if (typeof window === 'undefined') {
     return {
@@ -30,6 +31,11 @@ const loadAuthFromStorage = (): AuthState => {
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
     const user = userStr ? JSON.parse(userStr) : null;
+
+    // Re-sync cookie on load
+    if (user?.user_type) {
+      setCookie('user_type', user.user_type, 7);
+    }
 
     return {
       token,
@@ -60,10 +66,10 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.isAuthenticated = true;
 
-      // Persist to localStorage
       if (typeof window !== 'undefined') {
         localStorage.setItem('token', action.payload.token);
         localStorage.setItem('user', JSON.stringify(action.payload.user));
+        setCookie('user_type', action.payload.user.user_type, 7);
       }
     },
     logout: (state) => {
@@ -71,10 +77,10 @@ const authSlice = createSlice({
       state.user = null;
       state.isAuthenticated = false;
 
-      // Clear from localStorage
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        deleteCookie('user_type');
       }
     },
   },

@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { Pencil, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { useListTeachersQuery } from "@/lib/features/users/teachers/teachersApi";
-import type { GuruProfile } from "@/lib/features/users/teachers/types";
-import { useTeacherPrecache } from "@/lib/hooks/useTeacherPrecache";
-import { useDebounce } from "@/lib/hooks/useDebounce";
+import { useListTeachersQuery } from "@/api/teachers";
+import type { GuruProfile } from "@/types/teachers";
+import { useTeacherPrecache } from "@/hooks/useTeacherPrecache";
+import { useDebounce } from "@/hooks/useDebounce";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Inter } from "next/font/google";
 import { StoreProvider } from "./StoreProvider";
 import "./styles/globals.css";
-import Header from "./components/header";
+import RoleHeader from "./components/role-header";
 import Footer from "./components/footer";
 import AuthGuard from "./components/auth-guard";
 
@@ -18,7 +18,7 @@ export default function RootLayout({ children }: Props) {
       <html lang="en" className={inter.className}>
         <body className="flex min-h-screen flex-col">
           <AuthGuard>
-            <Header />
+            <RoleHeader />
             <div className="flex-1">{children}</div>
             <Footer />
           </AuthGuard>

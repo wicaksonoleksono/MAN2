@@ -1,6 +1,14 @@
-import type { User } from "./authSlice";
-
 export type UserType = "Siswa" | "Guru" | "Admin";
+
+export interface User {
+  user_id: string;
+  username: string | null;
+  user_type: UserType;
+  registration_status: "Pending" | "Completed";
+  created_at: string;
+  last_login: string | null;
+  is_active: boolean;
+}
 
 export interface LoginRequest {
   username: string;
@@ -12,8 +20,4 @@ export interface TokenResponse {
   token_type: string;
   expires_in: number;
   user: User;
-}
-
-export interface MessageResponse {
-  message: string;
 }

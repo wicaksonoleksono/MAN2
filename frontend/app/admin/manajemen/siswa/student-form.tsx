@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { usePreRegisterStudentMutation } from "@/lib/features/users/students/studentsApi";
-import type { PreRegisterStudentRequest } from "@/lib/features/users/students/types";
+import { usePreRegisterStudentMutation } from "@/api/students";
+import type { PreRegisterStudentRequest } from "@/types/students";
 
 const INITIAL_STATE: PreRegisterStudentRequest = {
   nis: "",

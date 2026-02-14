@@ -9,8 +9,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useDeleteStudentMutation } from "@/lib/features/users/students/studentsApi";
-import type { StudentProfile } from "@/lib/features/users/students/types";
+import { useDeleteStudentMutation } from "@/api/students";
+import type { StudentProfile } from "@/types/students";
 
 interface StudentDeleteDialogProps {
   student: StudentProfile | null;

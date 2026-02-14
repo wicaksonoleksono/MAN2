@@ -2,7 +2,7 @@
 
 import { type ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import type { GuruProfile } from "@/lib/features/users/teachers/types";
+import type { GuruProfile } from "@/types/teachers";
 
 export const teacherColumns: ColumnDef<GuruProfile>[] = [
   {

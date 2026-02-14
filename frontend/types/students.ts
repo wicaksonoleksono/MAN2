@@ -1,4 +1,4 @@
-import type { JenisKelamin, StatusSiswa } from "../enums";
+import type { JenisKelamin, StatusSiswa } from "./enums";
 
 export interface StudentProfile {
   siswa_id: string;
@@ -63,8 +63,4 @@ export interface ListStudentsParams {
   skip: number;
   limit: number;
   search?: string;
-}
-
-export interface MessageResponse {
-  message: string;
 }
