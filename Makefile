@@ -2,7 +2,7 @@
         dev-up dev-down dev-backend dev-frontend \
         prod-build prod-up prod-down \
         db-up db-down db-shell db-reset \
-        seed-admins import-students \
+        seed-admins seed-absensi import-students \
         logs status clean
 
 include .env
@@ -36,6 +36,7 @@ help:
 	@echo ""
 	@echo "Scripts:"
 	@echo "  make seed-admins              Seed admin accounts (admin1-3)"
+	@echo "  make seed-absensi             Seed attendance + izin keluar data"
 	@echo "  make import-students FILE=x   Import students from xlsx"
 	@echo ""
 	@echo "Other:"
@@ -108,6 +109,9 @@ db-reset:
 
 seed-admins:
 	$(DEV) exec backend python scripts/seed_admins.py
+
+seed-absensi:
+	$(DEV) exec backend python scripts/seed_absensi.py
 
 import-students:
 	@if [ -z "$(FILE)" ]; then echo "Usage: make import-students FILE=\"/path/to/file.xlsx\""; exit 1; fi

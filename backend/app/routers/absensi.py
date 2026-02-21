@@ -1,5 +1,7 @@
+from typing import Optional
+from datetime import date
 from uuid import UUID
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.database import get_db
 from app.dependencies import require_role
@@ -9,6 +11,10 @@ from app.services.absensi_service import AbsensiService
 from app.dto.absensi.absensi_response import (
     AbsensiResponseDTO,
     IzinKeluarResponseDTO,
+)
+from app.dto.absensi.public_response import (
+    PublicAbsensiDTO,
+    PublicIzinKeluarDTO,
 )
 from app.dto.absensi.bulk_absensi_dto import (
     BulkAbsensiCreateDTO,
@@ -128,3 +134,44 @@ async def get_izin_keluar(
 ) -> IzinKeluarResponseDTO:
     service = AbsensiService(db)
     return await service.get_izin_keluar(izin_id)
+
+
+# ── Public (no auth) ────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/public/attendance",
+    response_model=list[PublicAbsensiDTO],
+    summary="Public Attendance List",
+    description="List attendance records with student names. No auth required.",
+)
+async def list_absensi_public(
+    tanggal: date = Query(description="Filter date (YYYY-MM-DD)"),
+    search: Optional[str] = Query(None, description="Search by student name"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+) -> list[PublicAbsensiDTO]:
+    service = AbsensiService(db)
+    return await service.list_absensi_public(
+        tanggal=tanggal, search=search, skip=skip, limit=limit
+    )
+
+
+@router.get(
+    "/public/izin-keluar",
+    response_model=list[PublicIzinKeluarDTO],
+    summary="Public Izin Keluar List",
+    description="List izin keluar records with student names. No auth required.",
+)
+async def list_izin_keluar_public(
+    tanggal: date = Query(description="Filter date (YYYY-MM-DD)"),
+    search: Optional[str] = Query(None, description="Search by student name"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+) -> list[PublicIzinKeluarDTO]:
+    service = AbsensiService(db)
+    return await service.list_izin_keluar_public(
+        tanggal=tanggal, search=search, skip=skip, limit=limit
+    )

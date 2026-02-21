@@ -1,10 +1,14 @@
+from typing import Optional
+from datetime import date
 from uuid import UUID
 from fastapi import HTTPException, status
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.absensi import Absensi
 from app.models.izin_keluar import IzinKeluar
 from app.models.user import User
+from app.models.siswa_profile import SiswaProfile
 from app.models.kelas import Kelas
 from app.models.siswa_kelas import SiswaKelas
 from app.models.guru_mapel import GuruMapel
@@ -12,6 +16,10 @@ from app.enums import UserType
 from app.dto.absensi.absensi_response import (
     AbsensiResponseDTO,
     IzinKeluarResponseDTO,
+)
+from app.dto.absensi.public_response import (
+    PublicAbsensiDTO,
+    PublicIzinKeluarDTO,
 )
 from app.dto.absensi.bulk_absensi_dto import (
     BulkAbsensiCreateDTO,
@@ -161,6 +169,91 @@ class AbsensiService:
                 detail="Izin keluar record not found"
             )
         return self._to_izin_dto(record)
+
+    # ── Public (no auth) ────────────────────────────────────────────────────────
+
+    def _to_public_absensi_dto(self, record: Absensi) -> PublicAbsensiDTO:
+        profile = record.user.siswa_profile if record.user else None
+        return PublicAbsensiDTO(
+            absensi_id=record.absensi_id,
+            nama_siswa=profile.nama_lengkap if profile else "Unknown",
+            kelas=profile.kelas_jurusan if profile else None,
+            tanggal=record.tanggal,
+            time_in=record.time_in,
+            time_out=record.time_out,
+            status=record.status,
+        )
+
+    def _to_public_izin_dto(self, record: IzinKeluar) -> PublicIzinKeluarDTO:
+        profile = record.user.siswa_profile if record.user else None
+        return PublicIzinKeluarDTO(
+            izin_id=record.izin_id,
+            nama_siswa=profile.nama_lengkap if profile else "Unknown",
+            kelas=profile.kelas_jurusan if profile else None,
+            created_at=record.created_at,
+            keterangan=record.keterangan,
+            waktu_kembali=record.waktu_kembali,
+        )
+
+    async def list_absensi_public(
+        self,
+        tanggal: date,
+        search: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> list[PublicAbsensiDTO]:
+        """
+        Public list of attendance records filtered by date, with student names.
+
+        Raises:
+            HTTPException: 500 if database error
+        """
+        stmt = (
+            select(Absensi)
+            .join(User, Absensi.user_id == User.user_id)
+            .outerjoin(SiswaProfile, User.user_id == SiswaProfile.user_id)
+            .options(
+                selectinload(Absensi.user).selectinload(User.siswa_profile)
+            )
+            .where(Absensi.tanggal == tanggal)
+        )
+        if search:
+            stmt = stmt.where(SiswaProfile.nama_lengkap.ilike(f"%{search}%"))
+        stmt = stmt.order_by(SiswaProfile.nama_lengkap).offset(skip).limit(limit)
+
+        result = await self.db.execute(stmt)
+        records = result.scalars().all()
+        return [self._to_public_absensi_dto(r) for r in records]
+
+    async def list_izin_keluar_public(
+        self,
+        tanggal: date,
+        search: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> list[PublicIzinKeluarDTO]:
+        """
+        Public list of izin keluar records filtered by date, with student names.
+
+        Raises:
+            HTTPException: 500 if database error
+        """
+        stmt = (
+            select(IzinKeluar)
+            .join(User, IzinKeluar.user_id == User.user_id)
+            .outerjoin(SiswaProfile, User.user_id == SiswaProfile.user_id)
+            .options(
+                selectinload(IzinKeluar.user).selectinload(User.siswa_profile)
+            )
+            .where(func.date(IzinKeluar.created_at) == tanggal)
+        )
+        if search:
+            stmt = stmt.where(SiswaProfile.nama_lengkap.ilike(f"%{search}%"))
+        stmt = stmt.order_by(IzinKeluar.created_at.desc()).offset(skip).limit(limit)
+
+        result = await self.db.execute(stmt)
+        records = result.scalars().all()
+        return [self._to_public_izin_dto(r) for r in records]
 
     # ── Bulk Attendance ─────────────────────────────────────────────────────────
 

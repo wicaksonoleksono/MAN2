@@ -1,14 +1,24 @@
 import type { Action, ThunkAction } from "@reduxjs/toolkit";
 import { combineSlices, configureStore } from "@reduxjs/toolkit";
 import authReducer from "./slices/auth";
+import cmsReducer from "./slices/cms";
+import berandaReducer from "./slices/beranda";
 import { authApi } from "@/api/auth";
 import { studentsApi } from "@/api/students";
 import { teachersApi } from "@/api/teachers";
 import { registrationApi } from "@/api/registration";
+import { cmsApi } from "@/api/setContentManagement";
+import { absensiApi } from "@/api/absensi";
 
-const rootReducer = combineSlices(authApi, studentsApi, teachersApi, registrationApi, {
-  auth: authReducer,
-});
+const rootReducer = combineSlices(
+  authApi,
+  studentsApi,
+  teachersApi,
+  registrationApi,
+  cmsApi,
+  absensiApi,
+  { auth: authReducer, cms: cmsReducer, beranda: berandaReducer }
+);
 
 export type RootState = ReturnType<typeof rootReducer>;
 
@@ -21,6 +31,8 @@ export const makeStore = () => {
         studentsApi.middleware,
         teachersApi.middleware,
         registrationApi.middleware,
+        cmsApi.middleware,
+        absensiApi.middleware,
       ),
   });
 };

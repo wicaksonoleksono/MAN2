@@ -1,0 +1,38 @@
+[
+  {
+    "id": "cc124a35-1fbc-41cd-9fe8-b65f28eaab3a",
+    "title": "Selamat Datang di SIMANDAYA",
+    "description": "Sistem Informasi Manajemen Data Madrasah Aliyah - MAN 2 Yogyakarta",
+    "bg": "bg-primary",
+    "fg": "text-primary-foreground",
+    "image_url": null,
+    "link_url": null,
+    "link_label": null,
+    "order_index": 0,
+    "is_active": true
+  },
+  {
+    "id": "cd8f1152-15a3-4d87-a355-80eeabbc3c09",
+    "title": "Layanan Digital Terpadu",
+    "description": "Akses informasi akademik, absensi, dan layanan sekolah dalam satu platform",
+    "bg": "bg-secondary",
+    "fg": "text-secondary-foreground",
+    "image_url": null,
+    "link_url": null,
+    "link_label": null,
+    "order_index": 1,
+    "is_active": true
+  },
+  {
+    "id": "461ece8a-5a4d-45ae-9c60-7305eab8f366",
+    "title": "Transparan dan Akuntabel",
+    "description": "Mendukung pengelolaan madrasah yang modern, transparan, dan akuntabel",
+    "bg": "bg-accent",
+    "fg": "text-accent-foreground",
+    "image_url": null,
+    "link_url": null,
+    "link_label": null,
+    "order_index": 2,
+    "is_active": true
+  }
+]

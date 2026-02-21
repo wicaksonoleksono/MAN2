@@ -25,6 +25,7 @@ export const roleRoutePrefix: Record<UserType, string> = {
 
 export const publicNav: NavLink[] = [
   { label: "Beranda", href: "/" },
+  { label: "Absensi", href: "/beranda" },
 ];
 
 export const adminNav: NavItem[] = [
