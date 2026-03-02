@@ -5,24 +5,24 @@
 .env
 .env.prod
 .env*.local
-backend/.env
-frontend/.env.local
+simandaya-web/backend/.env
+simandaya-web/frontend/.env.local
 .playwright-mcp
+
 # Node / Frontend
 node_modules/
 .next/
 out/
 build/
 .pnpm-store/
-frontend/.pnpm-store/
 .pnpm/
 .pnpm*
 *.tsbuildinfo
 next-env.d.ts
-/coverage
+coverage/
 
 # Yarn / PnP
-/.pnp
+.pnp
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -50,8 +50,8 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
-backend/venv/
-backend/env/
+simandaya-web/backend/venv/
+simandaya-web/backend/env/
 
 # Logs
 *.log
@@ -60,7 +60,7 @@ yarn-debug.log*
 yarn-error.log*
 logs/
 
-# Docker
+# PIDs
 *.pid
 .backend.pid
 .frontend.pid
@@ -78,3 +78,8 @@ logs/
 
 # Vercel
 .vercel
+
+# Large binary files (keep out of git)
+*.rar
+*.pdf
+App+csv template/
