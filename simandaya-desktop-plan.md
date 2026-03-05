@@ -8,27 +8,49 @@ A Flutter Windows desktop app running on a dedicated gate PC that:
 3. Stores records locally in SQLite
 4. Syncs to the existing FastAPI backend via WebSocket
 
----
 
-## Part 1: Backend Changes (FastAPI)
 
-### 1a. Add `card_no` to SiswaProfile
+## Part 1: Backend Changes (FastAPI) — DONE
 
-- New nullable column `card_no: String(50), unique=True`
-- This maps an RFID card to a student
-- Alembic migration needed
+> Desktop app handles `card_no → user_id` mapping locally. Backend only knows `user_id`.
 
-### 1b. New API endpoint: Student sync
+### 1a. Settings & Auth — DONE
 
-- `GET /api/desktop/students` — returns list of `{user_id, card_no, nama_lengkap, nis, kelas_jurusan}` for all students with a card_no
-- Protected by a device API key (not user JWT)
+- Added `DESKTOP_API_KEY` to `app/config/settings.py` and `.env.example`
+- Added `verify_desktop_api_key` dependency in `app/dependencies.py` (X-API-Key header)
 
-### 1c. New WebSocket endpoint: `/ws/desktop`
+### 1b. DesktopSettings Model — DONE
 
-- Desktop app connects with device API key
-- Sends attendance events: `{card_no, event_type, device_time, reason?}`
-- Server processes: creates/updates Absensi record OR creates IzinKeluar record
-- Server sends back ack with `published_at` timestamp
+- `app/models/desktop_settings.py` — singleton row (id=1) with `late_cutoff_time` (default 07:15)
+- Registered in `app/config/database.py` `init_db()`
+
+### 1c. DTOs — DONE
+
+- `app/dto/desktop/desktop_request.py` — `AttendanceEventDTO`, `UpdateDesktopSettingsDTO`
+- `app/dto/desktop/desktop_response.py` — `StudentSyncDTO`, `AttendanceAckDTO`, `DesktopSettingsDTO`
+
+### 1d. DesktopService — DONE
+
+- `app/services/desktop_service.py`
+- `list_students()` — all active siswa with profile info
+- `process_attendance_event()` — handles absen_masuk (Hadir/Terlambat based on cutoff), absen_keluar, izin
+- `get_settings()` / `update_settings()` — singleton CRUD
+
+### 1e. Desktop Router — DONE
+
+- `app/routers/desktop.py`, registered in `app/main.py`
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| `GET` | `/api/desktop/students` | API Key | Student list for RFID mapping |
+| `GET` | `/api/desktop/settings` | API Key | Get late cutoff config |
+| `PUT` | `/api/desktop/settings` | JWT (Admin) | Update cutoff time |
+| `WS` | `/api/desktop/ws?api_key=<key>` | Query param | Attendance events (bidirectional) |
+
+### WebSocket Protocol
+
+- Desktop sends: `{record_id, user_id, event_type, device_time, reason?}`
+- Server replies: `{record_id, status: "ok"|"error", published_at, detail?}`
 
 ---
 
@@ -214,7 +236,7 @@ The stream returns `multipart/mixed` with boundary. Each part contains:
 
 ## Part 7: Execution Order
 
-1. **Backend first**: add `card_no` to SiswaProfile, migration, student sync API, WebSocket endpoint
+1. ~~**Backend changes**~~ — DONE (Part 1)
 2. **Flutter scaffold**: project init, Drift DB, config screen
 3. **Hikvision integration**: ISAPI client, alertStream, event poller
 4. **UI**: dashboard + tap popup
@@ -249,4 +271,4 @@ The stream returns `multipart/mixed` with boundary. Each part contains:
 - `nis` String(50) unique nullable
 - `nama_lengkap` String(225)
 - `kelas_jurusan` String(100) nullable
-- **TODO:** add `card_no` String(50) unique nullable
+- Note: `card_no` mapping lives in desktop app's local SQLite, not on the server

@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     # Password Hashing Configuration
     BCRYPT_ROUNDS: int = 12
 
+    # Desktop App Configuration
+    DESKTOP_API_KEY: str = "change-this-desktop-api-key"
+
     @property
     def database_url(self) -> str:
         """

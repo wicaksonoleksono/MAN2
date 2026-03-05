@@ -1,0 +1,315 @@
+from datetime import datetime, time, timezone
+from uuid import UUID
+from fastapi import HTTPException, status
+from sqlalchemy import select, and_
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models.user import User
+from app.models.siswa_profile import SiswaProfile
+from app.models.absensi import Absensi
+from app.models.izin_keluar import IzinKeluar
+from app.models.desktop_settings import DesktopSettings
+from app.enums import UserType, StatusAbsensi
+from app.dto.desktop.desktop_request import AttendanceEventDTO
+from app.dto.desktop.desktop_response import (
+    StudentSyncDTO,
+    AttendanceAckDTO,
+    DesktopSettingsDTO,
+)
+
+
+class DesktopService:
+    """
+    Service for desktop app operations: student sync, attendance processing, settings.
+
+    Raises:
+        HTTPException: 400, 404, 500
+    """
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def _validate_active_siswa(self, user_id: UUID) -> User:
+        """
+        Validate that user_id belongs to an active siswa.
+
+        Raises:
+            HTTPException: 404 if user not found
+            HTTPException: 400 if user is not an active student
+        """
+        result = await self.db.execute(
+            select(User).where(User.user_id == user_id)
+        )
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User {user_id} not found"
+            )
+        if user.user_type != UserType.siswa:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"User {user_id} is not a student"
+            )
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"User {user_id} is not active"
+            )
+        return user
+
+    async def _get_late_cutoff_time(self) -> time:
+        """Get the late cutoff time from settings, defaults to 07:15."""
+        result = await self.db.execute(
+            select(DesktopSettings).where(DesktopSettings.id == 1)
+        )
+        settings_row = result.scalar_one_or_none()
+        if settings_row:
+            return settings_row.late_cutoff_time
+        return time(7, 15)
+
+    # ── Student Sync ─────────────────────────────────────────────────────────
+
+    async def list_students(self) -> list[StudentSyncDTO]:
+        """
+        List all active students with their profile info for desktop sync.
+
+        Raises:
+            HTTPException: 500 on database error
+        """
+        result = await self.db.execute(
+            select(
+                User.user_id,
+                SiswaProfile.nama_lengkap,
+                SiswaProfile.nis,
+                SiswaProfile.kelas_jurusan,
+            )
+            .join(SiswaProfile, User.user_id == SiswaProfile.user_id)
+            .where(
+                and_(
+                    User.user_type == UserType.siswa,
+                    User.is_active == True,
+                )
+            )
+            .order_by(SiswaProfile.nama_lengkap)
+        )
+        rows = result.all()
+        return [
+            StudentSyncDTO(
+                user_id=row.user_id,
+                nama_lengkap=row.nama_lengkap,
+                nis=row.nis,
+                kelas_jurusan=row.kelas_jurusan,
+            )
+            for row in rows
+        ]
+
+    # ── Attendance Processing ────────────────────────────────────────────────
+
+    async def process_attendance_event(self, event: AttendanceEventDTO) -> AttendanceAckDTO:
+        """
+        Process an attendance event from the desktop app.
+
+        Dispatches to the appropriate handler based on event_type.
+
+        Raises:
+            HTTPException: 400, 404 on validation errors
+            HTTPException: 500 on database error
+        """
+        try:
+            if event.event_type == "absen_masuk":
+                return await self._handle_absen_masuk(event)
+            elif event.event_type == "absen_keluar":
+                return await self._handle_absen_keluar(event)
+            elif event.event_type == "izin":
+                return await self._handle_izin(event)
+        except HTTPException:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to process attendance event: {str(e)}"
+            )
+
+    async def _handle_absen_masuk(self, event: AttendanceEventDTO) -> AttendanceAckDTO:
+        """
+        Handle check-in event.
+
+        1. Validate user is active siswa
+        2. Get late cutoff time
+        3. Check if already checked in today — skip if so
+        4. Create/update Absensi with time_in, status = Hadir or Terlambat
+        """
+        await self._validate_active_siswa(event.user_id)
+        cutoff = await self._get_late_cutoff_time()
+        today = event.device_time.date()
+
+        # Check existing absensi for today
+        result = await self.db.execute(
+            select(Absensi).where(
+                and_(
+                    Absensi.user_id == event.user_id,
+                    Absensi.tanggal == today,
+                )
+            )
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing and existing.time_in is not None:
+            return AttendanceAckDTO(
+                record_id=event.record_id,
+                status="ok",
+                published_at=datetime.now(timezone.utc),
+                detail="Already checked in today, skipped"
+            )
+
+        # Determine status based on device_time vs cutoff
+        device_local_time = event.device_time.time()
+        attendance_status = (
+            StatusAbsensi.terlambat if device_local_time > cutoff
+            else StatusAbsensi.hadir
+        )
+
+        if existing:
+            existing.time_in = event.device_time
+            existing.status = attendance_status
+        else:
+            record = Absensi(
+                user_id=event.user_id,
+                tanggal=today,
+                time_in=event.device_time,
+                status=attendance_status,
+            )
+            self.db.add(record)
+
+        await self.db.flush()
+
+        return AttendanceAckDTO(
+            record_id=event.record_id,
+            status="ok",
+            published_at=datetime.now(timezone.utc),
+        )
+
+    async def _handle_absen_keluar(self, event: AttendanceEventDTO) -> AttendanceAckDTO:
+        """
+        Handle check-out event.
+
+        1. Find today's Absensi for user
+        2. Update time_out
+        3. If no record exists, return error ack
+        """
+        today = event.device_time.date()
+
+        result = await self.db.execute(
+            select(Absensi).where(
+                and_(
+                    Absensi.user_id == event.user_id,
+                    Absensi.tanggal == today,
+                )
+            )
+        )
+        existing = result.scalar_one_or_none()
+
+        if not existing:
+            return AttendanceAckDTO(
+                record_id=event.record_id,
+                status="error",
+                published_at=datetime.now(timezone.utc),
+                detail="No check-in record found for today"
+            )
+
+        existing.time_out = event.device_time
+        await self.db.flush()
+
+        return AttendanceAckDTO(
+            record_id=event.record_id,
+            status="ok",
+            published_at=datetime.now(timezone.utc),
+        )
+
+    async def _handle_izin(self, event: AttendanceEventDTO) -> AttendanceAckDTO:
+        """
+        Handle izin (permission to leave) event.
+
+        1. Validate user is active siswa
+        2. Create IzinKeluar record
+        """
+        await self._validate_active_siswa(event.user_id)
+
+        if not event.reason:
+            return AttendanceAckDTO(
+                record_id=event.record_id,
+                status="error",
+                published_at=datetime.now(timezone.utc),
+                detail="Reason is required for izin event"
+            )
+
+        izin = IzinKeluar(
+            user_id=event.user_id,
+            keterangan=event.reason,
+            created_at=event.device_time,
+        )
+        self.db.add(izin)
+        await self.db.flush()
+
+        return AttendanceAckDTO(
+            record_id=event.record_id,
+            status="ok",
+            published_at=datetime.now(timezone.utc),
+        )
+
+    # ── Settings ─────────────────────────────────────────────────────────────
+
+    async def get_settings(self) -> DesktopSettingsDTO:
+        """
+        Get desktop settings. Creates default row if none exists.
+
+        Raises:
+            HTTPException: 500 on database error
+        """
+        result = await self.db.execute(
+            select(DesktopSettings).where(DesktopSettings.id == 1)
+        )
+        settings_row = result.scalar_one_or_none()
+
+        if not settings_row:
+            settings_row = DesktopSettings(id=1, late_cutoff_time=time(7, 15))
+            self.db.add(settings_row)
+            await self.db.flush()
+
+        return DesktopSettingsDTO(
+            late_cutoff_time=settings_row.late_cutoff_time,
+            updated_at=settings_row.updated_at,
+        )
+
+    async def update_settings(
+        self, late_cutoff_time: time, admin_user_id: UUID
+    ) -> DesktopSettingsDTO:
+        """
+        Update desktop settings (admin only).
+
+        Raises:
+            HTTPException: 500 on database error
+        """
+        result = await self.db.execute(
+            select(DesktopSettings).where(DesktopSettings.id == 1)
+        )
+        settings_row = result.scalar_one_or_none()
+
+        if settings_row:
+            settings_row.late_cutoff_time = late_cutoff_time
+            settings_row.updated_by = admin_user_id
+        else:
+            settings_row = DesktopSettings(
+                id=1,
+                late_cutoff_time=late_cutoff_time,
+                updated_by=admin_user_id,
+            )
+            self.db.add(settings_row)
+
+        await self.db.flush()
+
+        return DesktopSettingsDTO(
+            late_cutoff_time=settings_row.late_cutoff_time,
+            updated_at=settings_row.updated_at,
+        )
