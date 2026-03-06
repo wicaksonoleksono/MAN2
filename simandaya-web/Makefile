@@ -8,8 +8,8 @@
 include .env
 export
 
-DEV  = docker-compose --env-file .env
-PROD = docker-compose --env-file .env.prod
+DEV  = docker compose --env-file .env
+PROD = docker compose --env-file .env.prod
 
 # ── Help ─────────────────────────────────────────────────────────────────────
 

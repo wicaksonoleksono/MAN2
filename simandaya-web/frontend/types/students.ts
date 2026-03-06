@@ -15,6 +15,7 @@ export interface StudentProfile {
   status_siswa: StatusSiswa;
   kontak: string | null;
   kewarganegaraan: string;
+  is_active: boolean;
 }
 
 export interface PreRegisterStudentRequest {

@@ -22,6 +22,7 @@ export interface GuruProfile {
   bidang_wakasek: BidangWakasek | null;
   mata_pelajaran: string | null;
   pendidikan_terakhir: string | null;
+  is_active: boolean;
 }
 
 export interface PreRegisterTeacherRequest {

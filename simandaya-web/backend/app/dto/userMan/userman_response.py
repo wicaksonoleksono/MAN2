@@ -19,6 +19,7 @@ class StudentProfileResponseDTO(BaseModel):
     status_siswa: StatusSiswa
     kontak: Optional[str] = None
     kewarganegaraan: str
+    is_active: bool = False
 
 
 class GuruProfileResponseDTO(BaseModel):
@@ -38,6 +39,7 @@ class GuruProfileResponseDTO(BaseModel):
     bidang_wakasek: Optional[BidangWakasek]
     mata_pelajaran: Optional[str]
     pendidikan_terakhir: Optional[str]
+    is_active: bool = False
 
 
 class PaginatedStudentsResponse(BaseModel):

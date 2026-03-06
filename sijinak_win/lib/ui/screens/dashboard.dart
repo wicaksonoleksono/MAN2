@@ -1,0 +1,409 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/providers.dart';
+import 'settings_screen.dart';
+
+class DashboardScreen extends ConsumerStatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  bool _initialSyncDone = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoSync();
+  }
+
+  Future<void> _autoSync() async {
+    if (_initialSyncDone) return;
+    _initialSyncDone = true;
+    final config = ref.read(configProvider).valueOrNull;
+    if (config != null && config.isServerConfigured) {
+      await ref.read(studentSyncProvider.notifier).syncStudents();
+      ref.invalidate(allStudentsProvider);
+      ref.invalidate(recentRecordsProvider);
+    }
+  }
+
+  Future<void> _refreshAll() async {
+    final config = ref.read(configProvider).valueOrNull;
+    if (config != null && config.isServerConfigured) {
+      await ref.read(studentSyncProvider.notifier).syncStudents();
+    }
+    ref.invalidate(allStudentsProvider);
+    ref.invalidate(recentRecordsProvider);
+    ref.invalidate(pendingSyncCountProvider);
+  }
+
+  String _studentName(String cardNo) {
+    final students = ref.read(allStudentsProvider).valueOrNull ?? [];
+    final student = students.where((s) => s.cardNo == cardNo).firstOrNull;
+    return student?.nama ?? cardNo;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final configAsync = ref.watch(configProvider);
+    final syncState = ref.watch(studentSyncProvider);
+    final pendingAsync = ref.watch(pendingSyncCountProvider);
+    final recordsAsync = ref.watch(recentRecordsProvider);
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return Scaffold(
+      body: Column(
+        children: [
+          // ── Header ──────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              border: Border(
+                bottom: BorderSide(color: colors.outlineVariant, width: 1),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.door_sliding, color: colors.primary, size: 28),
+                const SizedBox(width: 12),
+                Text('Simandaya Gate',
+                    style: theme.textTheme.headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.w600)),
+                const Spacer(),
+                syncState.when(
+                  data: (s) => s.syncing
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.sync),
+                          onPressed: _refreshAll,
+                          tooltip: 'Sync students & refresh',
+                        ),
+                  loading: () => const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  error: (_, __) => IconButton(
+                    icon: const Icon(Icons.sync_problem),
+                    onPressed: _refreshAll,
+                    tooltip: 'Retry sync',
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.settings),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  ).then((_) => _refreshAll()),
+                  tooltip: 'Settings',
+                ),
+              ],
+            ),
+          ),
+
+          // ── Status Cards ────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Row(
+              children: [
+                _buildStatusCard(
+                  context,
+                  icon: Icons.router,
+                  label: 'Reader',
+                  value: configAsync.whenOrNull(
+                        data: (c) =>
+                            c.isHikvisionConfigured ? 'Ready' : 'Not set',
+                      ) ??
+                      '...',
+                  color: configAsync.whenOrNull(
+                        data: (c) => c.isHikvisionConfigured
+                            ? Colors.green
+                            : Colors.red,
+                      ) ??
+                      Colors.grey,
+                ),
+                const SizedBox(width: 12),
+                _buildStatusCard(
+                  context,
+                  icon: Icons.cloud,
+                  label: 'Server',
+                  value: configAsync.whenOrNull(
+                        data: (c) =>
+                            c.isServerConfigured ? 'Connected' : 'Not set',
+                      ) ??
+                      '...',
+                  color: configAsync.whenOrNull(
+                        data: (c) =>
+                            c.isServerConfigured ? Colors.green : Colors.red,
+                      ) ??
+                      Colors.grey,
+                ),
+                const SizedBox(width: 12),
+                _buildStatusCard(
+                  context,
+                  icon: Icons.people,
+                  label: 'Students',
+                  value: syncState.when(
+                    data: (s) => '${s.count}',
+                    loading: () => '...',
+                    error: (_, __) => '?',
+                  ),
+                  color: Colors.blue,
+                  subtitle: syncState.whenOrNull(
+                    data: (s) {
+                      if (s.error != null) return 'Sync error';
+                      if (s.lastSyncedAt != null) {
+                        final t = s.lastSyncedAt!;
+                        return 'Synced ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _buildStatusCard(
+                  context,
+                  icon: Icons.cloud_upload,
+                  label: 'Pending',
+                  value: pendingAsync.when(
+                    data: (n) => '$n',
+                    loading: () => '...',
+                    error: (_, __) => '?',
+                  ),
+                  color: pendingAsync.whenOrNull(
+                        data: (n) => n > 0 ? Colors.orange : Colors.green,
+                      ) ??
+                      Colors.grey,
+                ),
+              ],
+            ),
+          ),
+
+          // ── Sync error banner ───────────────────────────────────
+          syncState.whenOrNull(
+                data: (s) {
+                  if (s.error == null) return null;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.warning_amber,
+                              color: Colors.orange.shade700, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Student sync failed: ${s.error}',
+                              style: TextStyle(
+                                  color: Colors.orange.shade800, fontSize: 12),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _refreshAll,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ) ??
+              const SizedBox.shrink(),
+
+          // ── Recent Events ───────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+            child: Row(
+              children: [
+                Text('Recent Events',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(color: colors.onSurfaceVariant)),
+                const Spacer(),
+                recordsAsync.whenOrNull(
+                      data: (records) => Text('${records.length} records',
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: colors.outline)),
+                    ) ??
+                    const SizedBox.shrink(),
+              ],
+            ),
+          ),
+
+          Expanded(
+            child: recordsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Error: $e')),
+              data: (records) => records.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.contactless,
+                              size: 64, color: colors.outlineVariant),
+                          const SizedBox(height: 12),
+                          Text('No events yet',
+                              style: theme.textTheme.titleMedium
+                                  ?.copyWith(color: colors.outline)),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Configure Hikvision reader and tap a card to start',
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: colors.outlineVariant),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: records.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final record = records[index];
+                        final time = DateTime.fromMillisecondsSinceEpoch(
+                            record.deviceTime * 1000);
+                        final timeStr =
+                            '${time.hour.toString().padLeft(2, '0')}:'
+                            '${time.minute.toString().padLeft(2, '0')}:'
+                            '${time.second.toString().padLeft(2, '0')}';
+
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor:
+                                _eventColor(record.eventType).withOpacity(0.1),
+                            child: Icon(
+                              _eventIcon(record.eventType),
+                              color: _eventColor(record.eventType),
+                              size: 20,
+                            ),
+                          ),
+                          title: Text(
+                            _studentName(record.cardNo),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          subtitle: Text(
+                            '${_eventLabel(record.eventType)} · $timeStr'
+                            '${record.reason != null ? ' · ${record.reason}' : ''}',
+                          ),
+                          trailing: Icon(
+                            record.publishedAt != null
+                                ? Icons.cloud_done
+                                : Icons.cloud_off_outlined,
+                            color: record.publishedAt != null
+                                ? Colors.green
+                                : colors.outlineVariant,
+                            size: 18,
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusCard(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+    String? subtitle,
+  }) {
+    final theme = Theme.of(context);
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.15)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 18),
+                const SizedBox(width: 6),
+                Text(label,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: color.withOpacity(0.8))),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600, color: color),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: color.withOpacity(0.6), fontSize: 10)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _eventIcon(String eventType) {
+    switch (eventType) {
+      case 'absen_masuk':
+        return Icons.login;
+      case 'absen_keluar':
+        return Icons.logout;
+      case 'izin':
+        return Icons.description;
+      default:
+        return Icons.contactless;
+    }
+  }
+
+  Color _eventColor(String eventType) {
+    switch (eventType) {
+      case 'absen_masuk':
+        return Colors.green;
+      case 'absen_keluar':
+        return Colors.blue;
+      case 'izin':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _eventLabel(String eventType) {
+    switch (eventType) {
+      case 'absen_masuk':
+        return 'Masuk';
+      case 'absen_keluar':
+        return 'Keluar';
+      case 'izin':
+        return 'Izin';
+      default:
+        return eventType;
+    }
+  }
+}

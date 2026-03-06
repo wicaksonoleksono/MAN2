@@ -2,6 +2,7 @@ from typing import Optional
 from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import select, func, or_
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.models.siswa_profile import SiswaProfile
@@ -46,6 +47,7 @@ class UserManagementService:
             status_siswa=profile.status_siswa,
             kontak=profile.kontak,
             kewarganegaraan=profile.kewarganegaraan,
+            is_active=profile.user.is_active if profile.user else False,
         )
 
     def _to_guru_dto(self, profile: GuruProfile) -> GuruProfileResponseDTO:
@@ -66,6 +68,7 @@ class UserManagementService:
             bidang_wakasek=profile.bidang_wakasek,
             mata_pelajaran=profile.mata_pelajaran,
             pendidikan_terakhir=profile.pendidikan_terakhir,
+            is_active=profile.user.is_active if profile.user else False,
         )
 
     # ── Student CRUD ─────────────────────────────────────────────────────────
@@ -92,7 +95,7 @@ class UserManagementService:
             )
 
         count_query = select(func.count()).select_from(SiswaProfile)
-        data_query = select(SiswaProfile)
+        data_query = select(SiswaProfile).options(selectinload(SiswaProfile.user))
 
         if search_filter is not None:
             count_query = count_query.where(search_filter)
@@ -119,7 +122,9 @@ class UserManagementService:
             HTTPException: 404 if student not found
         """
         result = await self.db.execute(
-            select(SiswaProfile).where(SiswaProfile.siswa_id == siswa_id)
+            select(SiswaProfile)
+            .options(selectinload(SiswaProfile.user))
+            .where(SiswaProfile.siswa_id == siswa_id)
         )
         profile = result.scalar_one_or_none()
         if not profile:
@@ -226,7 +231,7 @@ class UserManagementService:
             )
 
         count_query = select(func.count()).select_from(GuruProfile)
-        data_query = select(GuruProfile)
+        data_query = select(GuruProfile).options(selectinload(GuruProfile.user))
 
         if search_filter is not None:
             count_query = count_query.where(search_filter)
@@ -253,7 +258,9 @@ class UserManagementService:
             HTTPException: 404 if teacher not found
         """
         result = await self.db.execute(
-            select(GuruProfile).where(GuruProfile.guru_id == guru_id)
+            select(GuruProfile)
+            .options(selectinload(GuruProfile.user))
+            .where(GuruProfile.guru_id == guru_id)
         )
         profile = result.scalar_one_or_none()
         if not profile:

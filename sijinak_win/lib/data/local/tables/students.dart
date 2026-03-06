@@ -1,0 +1,14 @@
+import 'package:drift/drift.dart';
+
+class Students extends Table {
+  TextColumn get userId => text()();
+  TextColumn get cardNo => text().nullable()();
+  TextColumn get nama => text()();
+  TextColumn get nis => text().nullable()();
+  TextColumn get kelas => text().nullable()();
+  IntColumn get syncedAt => integer().nullable()();
+  BoolColumn get hikRegistered => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {userId};
+}

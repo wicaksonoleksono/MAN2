@@ -36,6 +36,18 @@ export const studentColumns: ColumnDef<StudentProfile>[] = [
     },
   },
   {
+    accessorKey: "is_active",
+    header: "Status Akun",
+    cell: ({ row }) => {
+      const active = row.getValue("is_active") as boolean;
+      return (
+        <Badge variant={active ? "default" : "outline"}>
+          {active ? "Terdaftar" : "Belum Daftar"}
+        </Badge>
+      );
+    },
+  },
+  {
     accessorKey: "kontak",
     header: "Kontak",
   },

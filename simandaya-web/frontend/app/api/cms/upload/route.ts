@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   const filepath = path.join(uploadDir, filename);
 
   const bytes = await file.arrayBuffer();
-  fs.writeFileSync(filepath, Buffer.from(bytes));
+  fs.writeFileSync(filepath, new Uint8Array(bytes));
 
   return NextResponse.json({ url: `/uploads/${filename}` }, { status: 201 });
 }

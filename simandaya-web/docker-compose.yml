@@ -42,6 +42,7 @@ services:
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      DESKTOP_API_KEY: ${DESKTOP_API_KEY:-your-desktop-api-key-change-this}
     ports:
       - "${BACKEND_EXTERNAL_PORT:-2385}:${APP_PORT:-2385}"
     depends_on:

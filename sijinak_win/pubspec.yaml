@@ -1,0 +1,43 @@
+name: sijinak_win
+description: "Simandaya Desktop - Gate Attendance System"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Local DB
+  drift: ^2.22.0
+  sqlite3_flutter_libs: ^0.5.0
+
+  # HTTP & networking
+  dio: ^5.7.0
+  web_socket_channel: ^3.0.0
+
+  # State management
+  flutter_riverpod: ^2.6.0
+
+  # Window control
+  window_manager: ^0.4.0
+
+  # WebView
+  webview_windows: ^0.4.0
+
+  # Utils
+  uuid: ^4.5.0
+  path_provider: ^2.1.0
+  path: ^1.9.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  drift_dev: ^2.22.0
+  build_runner: ^2.4.0
+
+flutter:
+  uses-material-design: true

@@ -168,7 +168,7 @@ async def seed():
                 registration_status=RegistrationStatus.pending,
                 username=None,
                 password_hash=None,
-                is_active=False,
+                is_active=True,
             )
             session.add(user)
             await session.flush()
