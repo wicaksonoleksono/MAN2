@@ -195,7 +195,7 @@ class IsapiClient {
   }
 
   /// Assign a card to a person on the Hikvision device.
-  /// POST Record to create, if already exists PUT SetUp to update.
+  /// If card already exists (from old system), delete it first then re-add.
   Future<void> upsertCard({
     required String cardNo,
     required String employeeNo,
@@ -213,11 +213,26 @@ class IsapiClient {
       await postJson('/ISAPI/AccessControl/CardInfo/Record?format=json', payload);
     } on IsapiException catch (e) {
       if (e.message.toLowerCase().contains('already')) {
-        await putJson('/ISAPI/AccessControl/CardInfo/SetUp?format=json', payload);
+        // Card belongs to another person — delete first, then re-add
+        await putJson('/ISAPI/AccessControl/CardInfo/Delete?format=json', {
+          'CardInfoDelCond': {
+            'CardNoList': [{'cardNo': cardNo}],
+          },
+        });
+        await postJson('/ISAPI/AccessControl/CardInfo/Record?format=json', payload);
       } else {
         rethrow;
       }
     }
+  }
+
+  /// Delete a card from the device.
+  Future<void> deleteCard({required String cardNo}) async {
+    await putJson('/ISAPI/AccessControl/CardInfo/Delete?format=json', {
+      'CardInfoDelCond': {
+        'CardNoList': [{'cardNo': cardNo}],
+      },
+    });
   }
 
   /// Test connection by fetching device info.

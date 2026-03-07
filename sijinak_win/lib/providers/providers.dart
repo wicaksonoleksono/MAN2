@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../data/local/database.dart';
 import '../data/remote/api_client.dart';
+import '../services/attendance_service.dart';
 import '../services/hikvision_service.dart';
 import '../services/student_service.dart';
 
@@ -31,6 +32,14 @@ final hikvisionServiceProvider = Provider<HikvisionService>((_) {
 // Student service
 final studentServiceProvider = Provider<StudentService>((ref) {
   return StudentService(ref.read(databaseProvider));
+});
+
+// Attendance service - singleton
+final attendanceServiceProvider = Provider<AttendanceService>((ref) {
+  return AttendanceService(
+    db: ref.read(databaseProvider),
+    hikService: ref.read(hikvisionServiceProvider),
+  );
 });
 
 // Dashboard data

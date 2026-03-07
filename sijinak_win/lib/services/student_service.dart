@@ -23,6 +23,15 @@ class BulkPushProgress {
   });
 }
 
+class CardAlreadyAssignedException implements Exception {
+  final String cardNo;
+  final String ownerName;
+  CardAlreadyAssignedException(this.cardNo, this.ownerName);
+
+  @override
+  String toString() => 'Kartu $cardNo sudah dipakai oleh $ownerName';
+}
+
 class StudentService {
   final AppDatabase db;
 
@@ -46,10 +55,24 @@ class StudentService {
     await db.markHikRegistered(student.userId);
   }
 
+  /// Check if card is already assigned to another student.
+  /// Returns the owner if duplicate, null if available.
+  Future<Student?> checkCardDuplicate(String cardNo, String excludeUserId) async {
+    final existing = await db.getStudentByCard(cardNo);
+    if (existing != null && existing.userId != excludeUserId) {
+      return existing;
+    }
+    return null;
+  }
+
   /// Assign a card to a student on both Hikvision and local DB.
+  /// Throws [CardAlreadyAssignedException] if card belongs to another student.
   Future<void> assignCard(Student student, String cardNo, AppConfig config) async {
-    final hikId = student.userId.replaceAll('-', '');
-    print('[assignCard] userId=${student.userId} hikId=$hikId cardNo=$cardNo');
+    // Check for duplicate in local DB
+    final existing = await checkCardDuplicate(cardNo, student.userId);
+    if (existing != null) {
+      throw CardAlreadyAssignedException(cardNo, existing.nama);
+    }
 
     final client = IsapiClient(
       baseUrl: config.hikvisionBaseUrl,
@@ -57,20 +80,47 @@ class StudentService {
       password: config.hikvisionPassword,
     );
 
-    print('[assignCard] upserting person...');
-    await client.upsertPerson(
-      employeeNo: student.userId,
-      name: student.nama,
-    );
-    print('[assignCard] person OK, upserting card...');
+    // Only register person if not already on device
+    if (!student.hikRegistered) {
+      print('[assignCard] registering person ${student.userId}');
+      await client.upsertPerson(
+        employeeNo: student.userId,
+        name: student.nama,
+      );
+      await db.markHikRegistered(student.userId);
+      print('[assignCard] person registered');
+    } else {
+      print('[assignCard] person already registered, skipping');
+    }
 
+    print('[assignCard] assigning card $cardNo to ${student.userId}');
     await client.upsertCard(
       cardNo: cardNo,
       employeeNo: student.userId,
     );
-    print('[assignCard] card OK, saving to DB...');
-
+    print('[assignCard] card assigned on device');
     await db.assignCardToStudent(student.userId, cardNo);
+    print('[assignCard] card saved to DB');
+  }
+
+  /// Remove card from student (local DB + Hikvision).
+  Future<void> removeCard(Student student, AppConfig config) async {
+    if (student.cardNo == null) return;
+
+    if (config.isHikvisionConfigured) {
+      try {
+        final client = IsapiClient(
+          baseUrl: config.hikvisionBaseUrl,
+          username: config.hikvisionUser,
+          password: config.hikvisionPassword,
+        );
+        await client.deleteCard(cardNo: student.cardNo!);
+      } catch (_) {
+        // Card might not exist on device, continue anyway
+      }
+    }
+
+    await db.removeCardFromStudent(student.userId);
   }
 
   /// Push unregistered students one-by-one, yielding progress.

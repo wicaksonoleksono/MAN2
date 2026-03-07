@@ -28,6 +28,9 @@ class AlertStream {
   /// The last serial number seen (for catch-up polling after reconnect).
   int lastSerialNo = 0;
 
+  /// The last device time seen from ANY event (including non-card events).
+  DateTime? lastDeviceTime;
+
   void start() {
     if (_running) return;
     _running = true;
@@ -148,10 +151,18 @@ class AlertStream {
       final jsonStart = part.indexOf('{');
       if (jsonStart < 0) continue;
 
-      // Find the matching closing brace
       final jsonStr = part.substring(jsonStart);
       try {
         final json = jsonDecode(jsonStr) as Map<String, dynamic>;
+
+        // Track device time from ALL events (including non-card ones)
+        final dtStr = json['dateTime'] as String?;
+        if (dtStr != null) {
+          try {
+            lastDeviceTime = DateTime.parse(dtStr);
+          } catch (_) {}
+        }
+
         final event = _parseJsonEvent(json);
         if (event != null) {
           events.add(event);

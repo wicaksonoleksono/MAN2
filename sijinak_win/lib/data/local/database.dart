@@ -50,7 +50,21 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> upsertStudents(List<StudentsCompanion> rows) async {
     await batch((b) {
-      b.insertAllOnConflictUpdate(students, rows);
+      for (final row in rows) {
+        b.insert(
+          students,
+          row,
+          onConflict: DoUpdate(
+            (old) => StudentsCompanion(
+              nama: row.nama,
+              nis: row.nis,
+              kelas: row.kelas,
+              syncedAt: row.syncedAt,
+            ),
+            target: [students.userId],
+          ),
+        );
+      }
     });
   }
 
@@ -65,6 +79,11 @@ class AppDatabase extends _$AppDatabase {
   Future<void> assignCardToStudent(String userId, String cardNo) =>
       (update(students)..where((s) => s.userId.equals(userId))).write(
         StudentsCompanion(cardNo: Value(cardNo)),
+      );
+
+  Future<void> removeCardFromStudent(String userId) =>
+      (update(students)..where((s) => s.userId.equals(userId))).write(
+        const StudentsCompanion(cardNo: Value(null)),
       );
 
   // ── Tap Records ───────────────────────────────────────────────────────

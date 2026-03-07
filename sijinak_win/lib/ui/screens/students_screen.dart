@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/local/database.dart';
 import '../../providers/providers.dart';
+import '../../services/student_service.dart';
 import '../widgets/card_scan_dialog.dart';
 import '../widgets/bulk_push_dialog.dart';
 
@@ -110,6 +111,7 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
 
   Future<void> _assignCard(Student student) async {
     final config = ref.read(configProvider).valueOrNull;
+    print('[_assignCard] config=$config isHik=${config?.isHikvisionConfigured}');
     if (config == null || !config.isHikvisionConfigured) {
       _showSnack('Konfigurasi Hikvision belum lengkap');
       return;
@@ -118,18 +120,89 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
     final result = await showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => CardScanDialog(config: config),
+      builder: (_) => const CardScanDialog(),
     );
 
+    print('[_assignCard] dialog result=$result');
     if (result == null || !mounted) return;
 
     try {
       await ref.read(studentServiceProvider).assignCard(student, result, config);
       _showSnack('Kartu $result berhasil di-assign ke ${student.nama}');
       await _loadStudents();
+    } on CardAlreadyAssignedException catch (e) {
+      _showSnack(e.toString());
     } catch (e) {
       _showSnack('Gagal assign kartu: $e');
     }
+  }
+
+  Future<void> _removeCard(Student student) async {
+    final config = ref.read(configProvider).valueOrNull;
+    if (config == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Kartu'),
+        content: Text('Hapus kartu ${student.cardNo} dari ${student.nama}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    try {
+      await ref.read(studentServiceProvider).removeCard(student, config);
+      _showSnack('Kartu ${student.cardNo} dihapus dari ${student.nama}');
+      await _loadStudents();
+    } catch (e) {
+      _showSnack('Gagal hapus kartu: $e');
+    }
+  }
+
+  void _showCardOptions(Student student) {
+    showDialog(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text('Kartu ${student.cardNo}'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _removeCard(student).then((__) {
+                if (mounted) _assignCard(student);
+              });
+            },
+            child: const ListTile(
+              leading: Icon(Icons.swap_horiz),
+              title: Text('Ganti Kartu'),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _removeCard(student);
+            },
+            child: const ListTile(
+              leading: Icon(Icons.delete_outline, color: Colors.red),
+              title: Text('Hapus Kartu', style: TextStyle(color: Colors.red)),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSnack(String msg) {
@@ -311,6 +384,8 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
                                         size: 14),
                                     visualDensity: VisualDensity.compact,
                                     padding: EdgeInsets.zero,
+                                    deleteIcon: const Icon(Icons.close, size: 14),
+                                    onDeleted: () => _showCardOptions(s),
                                   )
                                 : Row(
                                     mainAxisSize: MainAxisSize.min,

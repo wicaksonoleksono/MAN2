@@ -1,70 +1,65 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../config/app_config.dart';
-import '../../data/hikvision/isapi_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/providers.dart';
 import '../../data/hikvision/alert_stream.dart';
 
-/// Dialog that listens for the next card tap OR allows manual entry.
-class CardScanDialog extends StatefulWidget {
-  final AppConfig config;
-  const CardScanDialog({super.key, required this.config});
+/// Dialog that listens for card tap via the shared HikvisionService.
+/// Only accepts events with device time > baseline device time + 2s.
+class CardScanDialog extends ConsumerStatefulWidget {
+  const CardScanDialog({super.key});
 
   @override
-  State<CardScanDialog> createState() => _CardScanDialogState();
+  ConsumerState<CardScanDialog> createState() => _CardScanDialogState();
 }
 
-class _CardScanDialogState extends State<CardScanDialog> {
-  AlertStream? _alertStream;
+class _CardScanDialogState extends ConsumerState<CardScanDialog> {
   StreamSubscription? _sub;
-  String _status = 'Menghubungkan ke reader...';
-  bool _connected = false;
+  StreamSubscription? _statusSub;
   bool _manualMode = false;
+  bool _connected = false;
   final _manualCtrl = TextEditingController();
+
+  /// Only accept events with device time after this cutoff.
+  late final DateTime _cutoff;
 
   @override
   void initState() {
     super.initState();
-    _startScan();
-  }
+    final service = ref.read(hikvisionServiceProvider);
+    _connected = service.currentStatus == AlertStreamStatus.connected;
 
-  void _startScan() {
-    final client = IsapiClient(
-      baseUrl: widget.config.hikvisionBaseUrl,
-      username: widget.config.hikvisionUser,
-      password: widget.config.hikvisionPassword,
-    );
-    _alertStream = AlertStream(client: client);
+    // Baseline = last known device time + 2 seconds
+    final baseline = service.lastDeviceTime ?? DateTime(2000);
+    _cutoff = baseline.add(const Duration(seconds: 2));
 
-    _alertStream!.status.listen((s) {
+    print('[CardScan] cutoff=$_cutoff connected=$_connected');
+
+    _statusSub = service.status.listen((s) {
       if (!mounted || _manualMode) return;
-      setState(() {
-        _connected = s == AlertStreamStatus.connected;
-        _status = switch (s) {
-          AlertStreamStatus.connecting => 'Menghubungkan ke reader...',
-          AlertStreamStatus.connected => 'Tap kartu pada reader...',
-          AlertStreamStatus.disconnected => 'Terputus, mencoba ulang...',
-        };
-      });
+      setState(() => _connected = s == AlertStreamStatus.connected);
     });
 
-    _sub = _alertStream!.events.listen((event) {
+    _sub = service.events.listen((event) {
+      if (!mounted || _manualMode) return;
+      if (event.cardNo.isEmpty) return;
+      if (!event.dateTime.isAfter(_cutoff)) return;
+
+      print('[CardScan] GOT CARD: ${event.cardNo} time=${event.dateTime}');
       Navigator.of(context).pop(event.cardNo);
     });
-
-    _alertStream!.start();
   }
 
   void _switchToManual() {
     _sub?.cancel();
-    _alertStream?.dispose();
-    _alertStream = null;
+    _statusSub?.cancel();
     setState(() => _manualMode = true);
   }
 
   @override
   void dispose() {
     _sub?.cancel();
-    _alertStream?.dispose();
+    _statusSub?.cancel();
     _manualCtrl.dispose();
     super.dispose();
   }
@@ -128,7 +123,12 @@ class _CardScanDialogState extends State<CardScanDialog> {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
           const SizedBox(height: 8),
-          Text(_status, textAlign: TextAlign.center),
+          Text(
+            _connected
+                ? 'Tap kartu pada reader...'
+                : 'Menghubungkan ke reader...',
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 16),
           TextButton.icon(
             onPressed: _switchToManual,

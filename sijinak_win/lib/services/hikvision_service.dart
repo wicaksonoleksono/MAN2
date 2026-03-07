@@ -27,6 +27,12 @@ class HikvisionService {
   AlertStreamStatus _currentStatus = AlertStreamStatus.disconnected;
   AlertStreamStatus get currentStatus => _currentStatus;
 
+  /// The highest serialNo seen.
+  int get lastSerialNo => _alertStream?.lastSerialNo ?? 0;
+
+  /// The last device time from ANY event (including non-card noise).
+  DateTime? get lastDeviceTime => _alertStream?.lastDeviceTime;
+
   void start(AppConfig config) {
     stop();
 
