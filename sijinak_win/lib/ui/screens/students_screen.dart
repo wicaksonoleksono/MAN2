@@ -1,10 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../data/local/database.dart';
 import '../../providers/providers.dart';
 import '../../services/student_service.dart';
 import '../widgets/card_scan_dialog.dart';
 import '../widgets/bulk_push_dialog.dart';
+import '../widgets/bulk_card_assign_dialog.dart';
 
 class StudentsScreen extends ConsumerStatefulWidget {
   const StudentsScreen({super.key});
@@ -170,6 +173,75 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
     }
   }
 
+  Future<void> _importCardsCsv() async {
+    final config = ref.read(configProvider).valueOrNull;
+    if (config == null) {
+      _showSnack('Konfigurasi belum lengkap');
+      return;
+    }
+
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+      dialogTitle: 'Pilih file CSV (NIS, CardNo)',
+    );
+
+    if (result == null || result.files.isEmpty || !mounted) return;
+
+    final filePath = result.files.single.path;
+    if (filePath == null) return;
+
+    try {
+      final content = await File(filePath).readAsString();
+      final lines = content
+          .split(RegExp(r'\r?\n'))
+          .where((l) => l.trim().isNotEmpty)
+          .toList();
+
+      if (lines.length < 2) {
+        _showSnack('File CSV kosong atau hanya header');
+        return;
+      }
+
+      // Parse header
+      final header = lines.first.split(',').map((h) => h.trim().toLowerCase()).toList();
+      final nisIdx = header.indexWhere((h) => h == 'nis');
+      final cardIdx = header.indexWhere((h) => h == 'cardno' || h == 'card_no' || h == 'cardid' || h == 'card_id');
+
+      if (nisIdx < 0 || cardIdx < 0) {
+        _showSnack('Header CSV harus mengandung kolom NIS dan CardNo');
+        return;
+      }
+
+      final rows = <Map<String, String>>[];
+      for (int i = 1; i < lines.length; i++) {
+        final cols = lines[i].split(',').map((c) => c.trim()).toList();
+        if (cols.length <= nisIdx || cols.length <= cardIdx) continue;
+        final nis = cols[nisIdx];
+        final cardNo = cols[cardIdx];
+        if (nis.isEmpty || cardNo.isEmpty) continue;
+        rows.add({'nis': nis, 'cardNo': cardNo});
+      }
+
+      if (rows.isEmpty) {
+        _showSnack('Tidak ada data valid dalam CSV');
+        return;
+      }
+
+      if (!mounted) return;
+
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => BulkCardAssignDialog(rows: rows, config: config),
+      );
+
+      await _loadStudents();
+    } catch (e) {
+      _showSnack('Gagal membaca CSV: $e');
+    }
+  }
+
   void _showCardOptions(Student student) {
     showDialog(
       context: context,
@@ -241,6 +313,12 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
                     '${_filtered.length} siswa',
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: colors.outline),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.file_upload_outlined, size: 20),
+                    onPressed: _importCardsCsv,
+                    tooltip: 'Import kartu dari CSV',
                   ),
                   const SizedBox(width: 4),
                   IconButton(

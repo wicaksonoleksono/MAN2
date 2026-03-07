@@ -2,13 +2,13 @@
 
 ## Overview
 
-A Flutter Windows desktop app running on a dedicated gate PC that:
+A Flutter Windows desktop app (`sijinak_win/`) running on a dedicated gate PC that:
 1. Listens to Hikvision RFID reader via ISAPI `alertStream`
-2. Shows a popup for the operator to choose: Absen Masuk / Absen Keluar / Izin
-3. Stores records locally in SQLite
-4. Syncs to the existing FastAPI backend via WebSocket
+2. Auto-records attendance (masuk/keluar) to local SQLite on card tap
+3. Shows webview of simandaya-web frontend for live dashboard
+4. Syncs tap records to FastAPI backend via WebSocket *(pending)*
 
-
+---
 
 ## Part 1: Backend Changes (FastAPI) — DONE
 
@@ -54,40 +54,48 @@ A Flutter Windows desktop app running on a dedicated gate PC that:
 
 ---
 
-## Part 2: Flutter Desktop App
+## Part 2: Flutter Desktop App — DONE
 
-### Project Structure
+### Project Structure (actual)
 
 ```
-simandaya_desktop/
+sijinak_win/
 ├── lib/
 │   ├── main.dart
 │   ├── config/
-│   │   └── app_config.dart           # Hikvision IP/creds, server URL, API key
+│   │   └── app_config.dart           # Hikvision IP/creds, server URL, API key, frontendUrl
 │   ├── data/
 │   │   ├── local/
-│   │   │   ├── database.dart         # Drift DB definition
-│   │   │   ├── tables/
-│   │   │   │   ├── students.dart     # card_no, name, nis, kelas
-│   │   │   │   └── tap_records.dart  # local attendance queue
+│   │   │   ├── database.dart         # Drift DB + all queries
+│   │   │   └── tables/
+│   │   │       ├── students.dart     # userId PK, cardNo, nama, nis, kelas, syncedAt, hikRegistered
+│   │   │       └── tap_records.dart  # id, cardNo, eventType, deviceTime, reason, hikSerialNo, createdAt, publishedAt
 │   │   ├── hikvision/
-│   │   │   ├── isapi_client.dart     # Dio + Digest auth
-│   │   │   ├── alert_stream.dart     # Long-lived GET /alertStream
-│   │   │   └── event_poller.dart     # POST /AcsEvent polling catch-up
+│   │   │   ├── isapi_client.dart     # dart:io HttpClient + manual Digest auth
+│   │   │   ├── alert_stream.dart     # Long-lived GET /alertStream, JSON+XML parsing
+│   │   │   ├── event_poller.dart     # POST /AcsEvent polling with paging
+│   │   │   └── hik_event.dart        # HikEvent + DeviceInfo models
 │   │   └── remote/
-│   │       ├── api_client.dart       # REST calls to FastAPI
-│   │       └── ws_sync.dart          # WebSocket sync
+│   │       ├── api_client.dart       # REST: GET /api/desktop/students (X-API-Key)
+│   │       └── [ws_sync.dart]        # WebSocket sync — NOT YET IMPLEMENTED
 │   ├── services/
-│   │   ├── hikvision_service.dart    # Stream + polling orchestration
-│   │   ├── attendance_service.dart   # Tap -> decision -> save
-│   │   └── sync_service.dart         # Background queue -> server
+│   │   ├── hikvision_service.dart    # Orchestrates AlertStream + catch-up polling
+│   │   ├── attendance_service.dart   # HikEvent -> masuk/keluar decision -> TapRecord insert
+│   │   ├── student_service.dart      # Hikvision person/card management + CSV bulk assign
+│   │   ├── server_service.dart       # Server connection test (/api/desktop/settings)
+│   │   └── [sync_service.dart]       # Background queue -> server — NOT YET IMPLEMENTED
 │   ├── ui/
 │   │   ├── screens/
-│   │   │   ├── dashboard.dart        # Main screen: status + recent events
-│   │   │   ├── settings.dart         # Config page
-│   │   │   └── tap_popup.dart        # THE popup on RFID tap
+│   │   │   ├── app_shell.dart        # Shell with nav + starts HikvisionService + AttendanceService
+│   │   │   ├── dashboard.dart        # Connection status + recent tap events
+│   │   │   ├── students_screen.dart  # Student list + bulk Hik push + CSV card import
+│   │   │   ├── absensi_screen.dart   # WebView (webview_windows) of frontendUrl/beranda
+│   │   │   └── settings_screen.dart  # Hikvision + server config
 │   │   └── widgets/
-│   └── providers/                    # Riverpod
+│   │       ├── card_scan_dialog.dart       # Manual card scan with device-time filtering
+│   │       ├── bulk_push_dialog.dart       # Push all students to Hikvision
+│   │       └── bulk_card_assign_dialog.dart # CSV card assignment with progress
+│   └── providers/                          # Riverpod
 ├── pubspec.yaml
 ```
 
@@ -96,112 +104,138 @@ simandaya_desktop/
 | Package | Purpose |
 |---|---|
 | `drift` + `sqlite3_flutter_libs` | Local SQLite |
-| `dio` + digest auth | Hikvision ISAPI |
-| `web_socket_channel` | Sync to FastAPI |
-| `window_manager` | Window control (always-on-top popup) |
+| `dart:io` HttpClient + Digest auth | Hikvision ISAPI (no Dio) |
+| `webview_windows` | Absensi screen webview |
+| `file_picker` | CSV file selection for bulk card import |
 | `riverpod` | State management |
+| `[web_socket_channel]` | Sync to FastAPI — not yet added |
 
 ---
 
 ## Part 3: Core Flows
 
-### 3a. Hikvision alertStream Listener
+### 3a. Hikvision alertStream — DONE
 
 ```
-1. Open GET /ISAPI/Event/notification/alertStream (Digest auth, keep-alive)
-2. Parse multipart/mixed chunks
-3. Filter for AccessControllerEvent with cardNo
-4. On event -> trigger tap_popup
-5. On disconnect -> reconnect loop (2-3s retry)
-6. On reconnect -> poll AcsEvent with beginSerialNo > last known to catch gaps
+1. AlertStream opens GET /ISAPI/Event/notification/alertStream (Digest auth, keep-alive)
+2. Parses multipart/mixed chunks
+3. Tries JSON first (DS-K1T341 sends JSON), falls back to XML
+4. ALL JSON events update lastDeviceTime (including non-card noise)
+5. Card events (cardNo present) -> emitted as HikEvent
+6. lastSerialNo tracked for catch-up
+7. On disconnect -> auto-reconnect (3s retry)
+8. HikvisionService monitors status: on reconnect -> EventPoller.pollAll(lastSerialNo+1) catch-up
 ```
 
-### 3b. Tap Popup Flow
+**lastDeviceTime note:** Extracted from `dateTime` field of ALL JSON events (even heartbeats/noise),
+not just card events. Used by CardScanDialog to filter duplicate taps (only accept events where
+device time > lastDeviceTime + 2s).
+
+### 3b. Attendance Recording — DONE
 
 ```
-1. Lookup card_no in local SQLite -> get student (name, NIS, kelas)
-2. Check today's records for this card_no:
-   - No record today -> default suggest "Absen Masuk"
-   - Has Absen Masuk, no Keluar -> default suggest "Absen Keluar"
-   - Otherwise -> no default
-3. Show popup: Student info + 3 buttons:
-   [Absen Masuk]  [Absen Keluar]  [Izin]
-   - If "Izin" selected -> show text field for keterangan
-4. Save to local SQLite tap_records
-5. Queue for WebSocket sync
+AttendanceService listens to HikvisionService.events stream:
+1. Lookup student by employeeNo (UUID reconstructed from 32-hex) -> fallback to cardNo
+2. If unknown card -> ignore
+3. Query today's tap_records for this cardNo
+4. todayTaps.isEmpty -> eventType = "absen_masuk"
+   todayTaps.isNotEmpty -> eventType = "absen_keluar"
+5. Insert TapRecord with id="${cardNo}_${serialNo}" (UNIQUE guard)
+6. Fire onTapRecorded callback -> dashboard updates live
 ```
 
-### 3c. Background Sync
+No manual popup — tap type is auto-determined by today's record count.
+
+### 3c. Background Sync — NOT YET IMPLEMENTED
 
 ```
-1. On startup: connect WebSocket to FastAPI
-2. Worker loop: query tap_records WHERE published_at IS NULL
-3. Send each record via WebSocket
-4. On server ack -> update published_at locally
+Planned:
+1. On startup: connect WebSocket to /api/desktop/ws?api_key=<key>
+2. Worker loop: query tap_records WHERE publishedAt IS NULL
+3. Send each record: {record_id, user_id, event_type, device_time, reason}
+   (requires student lookup by cardNo to get userId for server)
+4. On server ack -> update publishedAt locally
 5. On disconnect -> queue keeps growing, retry connection
 6. On reconnect -> flush entire queue
 ```
 
-### 3d. Student Sync
+### 3d. Student Sync — PARTIALLY DONE
 
 ```
-1. On startup: GET /api/desktop/students from FastAPI
-2. Upsert into local SQLite students table
-3. Periodic refresh (every 30 min or on-demand button)
+ApiClient.fetchStudents() -> GET /api/desktop/students (DONE)
+Full sync service (upsert into local DB on startup/periodic) -> NOT YET IMPLEMENTED
+Currently: students are managed manually via Hikvision push + CSV card import
 ```
 
 ---
 
-## Part 4: Local SQLite Schema
+## Part 4: Local SQLite Schema (actual)
 
 ### students
 
 | Column | Type | Notes |
 |---|---|---|
-| card_no | TEXT | PK |
-| user_id | TEXT | UUID from server |
+| userId | TEXT | PK — UUID from server |
+| cardNo | TEXT | Nullable, assigned card |
 | nama | TEXT | Student name |
-| nis | TEXT | Student ID number |
-| kelas | TEXT | Class/jurusan |
-| synced_at | INTEGER | Epoch timestamp |
+| nis | TEXT | Nullable, student NIS |
+| kelas | TEXT | Nullable, class/jurusan |
+| syncedAt | INTEGER | Nullable, epoch |
+| hikRegistered | BOOL | Whether pushed to Hikvision device |
 
 ### tap_records
 
 | Column | Type | Notes |
 |---|---|---|
-| id | TEXT | UUID PK |
-| card_no | TEXT | RFID card number |
-| event_type | TEXT | absen_masuk / absen_keluar / izin |
-| device_time | INTEGER | Epoch from Hikvision |
+| id | TEXT | PK — format: `${cardNo}_${serialNo}` |
+| cardNo | TEXT | RFID card number |
+| eventType | TEXT | absen_masuk / absen_keluar / izin |
+| deviceTime | INTEGER | Epoch from Hikvision event dateTime |
 | reason | TEXT | Nullable, for izin keterangan |
-| hik_serial_no | INTEGER | Hikvision event serial |
-| created_at | INTEGER | Epoch |
-| published_at | INTEGER | Nullable, set on server ack |
+| hikSerialNo | INTEGER | Nullable, Hikvision event serial |
+| createdAt | INTEGER | Epoch |
+| publishedAt | INTEGER | Nullable, set on server ack |
 
-**Unique constraint:** `(card_no, device_time)` — prevents duplicate events from alertStream + polling overlap
+**Unique constraint:** `(cardNo, deviceTime)` — prevents duplicate events from alertStream + polling overlap
 
 ---
 
 ## Part 5: Hikvision ISAPI Reference
 
 ### Authentication
-- HTTP Digest auth
-- Credentials: configured in app settings
+- Manual HTTP Digest auth via `dart:io` HttpClient
+- Credentials: configured in app settings (IP, username, password)
+- Device: `192.168.40.181`, user `admin`
 
 ### Key Endpoints Used
 
 | Endpoint | Method | Purpose |
 |---|---|---|
 | `/ISAPI/Event/notification/alertStream` | GET | Real-time event stream (primary) |
-| `/ISAPI/AccessControl/AcsEvent?format=json` | POST | Poll events by serial number (catch-up) |
-| `/ISAPI/System/deviceInfo` | GET | Verify connection to device |
-| `/ISAPI/AccessControl/AcsEvent/capabilities?format=json` | GET | Check event capabilities |
+| `/ISAPI/AccessControl/AcsEvent?format=json` | POST | Poll events by serialNo (catch-up) |
+| `/ISAPI/System/deviceInfo` | GET | Verify connection / test |
+| `/ISAPI/AccessControl/UserInfo/Record?format=json` | POST | Upsert person |
+| `/ISAPI/AccessControl/CardInfo/Record?format=json` | PUT | Upsert card assignment |
+| `/ISAPI/AccessControl/CardInfo/Delete?format=json` | PUT | Delete card from device |
+| `/ISAPI/AccessControl/UserInfo/Delete?format=json` | PUT | Delete person(s) from device |
 
 ### alertStream Response Format
 
-The stream returns `multipart/mixed` with boundary. Each part contains:
-- `Content-Type: application/xml` or `application/json`
-- `<EventNotificationAlert/>` with event data including `cardNo`, `employeeNo`, timestamp
+Multipart/mixed with boundary. Each part:
+- `Content-Type: application/json` (DS-K1T341 series) or `application/xml`
+- JSON: `{ "dateTime": "...", "cardNo": "...", "employeeNoString": "...", "AccessControllerEvent": { "serialNo": ... } }`
+- XML: `<EventNotificationAlert>` with `<cardNo>`, `<dateTime>`, `<serialNo>` tags
+
+### employeeNo ↔ UUID conversion
+
+```dart
+// UUID -> Hikvision employeeNo (strip hyphens, 36 -> 32 chars)
+final employeeNo = userId.replaceAll('-', '');
+
+// Hikvision employeeNo -> UUID (re-insert hyphens)
+final uuid = '${h.substring(0,8)}-${h.substring(8,12)}-${h.substring(12,16)}'
+             '-${h.substring(16,20)}-${h.substring(20)}';
+```
 
 ### AcsEvent Polling (catch-up)
 
@@ -217,6 +251,7 @@ The stream returns `multipart/mixed` with boundary. Each part contains:
   }
 }
 ```
+Response `responseStatusStrg == "MORE"` means page through with next serialNo.
 
 ---
 
@@ -224,28 +259,37 @@ The stream returns `multipart/mixed` with boundary. Each part contains:
 
 | Concern | Solution |
 |---|---|
-| alertStream drops | Auto-reconnect loop (2-3s retry) |
-| Missed events during gap | AcsEvent polling catch-up on reconnect |
+| alertStream drops | Auto-reconnect loop (3s retry) in AlertStream |
+| Missed events during gap | EventPoller.pollAll() catch-up on reconnect |
 | Hikvision device reboot | Same reconnect loop handles it |
-| App crash | Windows Task Scheduler auto-restart |
-| Internet down | Local SQLite queues everything |
-| FastAPI server down | WebSocket reconnect + queue flush on recovery |
-| Duplicate events | UNIQUE(card_no, device_time) in SQLite |
+| Duplicate card events | `lastDeviceTime + 2s` filter in CardScanDialog; UNIQUE(cardNo, deviceTime) in DB |
+| App crash | Windows Task Scheduler auto-restart *(not yet configured)* |
+| Internet down | Local SQLite queues everything (publishedAt NULL) |
+| FastAPI server down | WebSocket reconnect + queue flush on recovery *(sync not yet built)* |
 
 ---
 
-## Part 7: Execution Order
+## Part 7: Status & Next Steps
 
-1. ~~**Backend changes**~~ — DONE (Part 1)
-2. **Flutter scaffold**: project init, Drift DB, config screen
-3. **Hikvision integration**: ISAPI client, alertStream, event poller
-4. **UI**: dashboard + tap popup
-5. **Sync**: WebSocket client, background queue worker
-6. **Hardening**: auto-reconnect, auto-start on boot, error handling
+### Done
+- [x] Backend changes (Part 1)
+- [x] Flutter scaffold: Drift DB, config screen, Riverpod providers
+- [x] Hikvision integration: IsapiClient (Digest), AlertStream (JSON+XML), EventPoller, HikvisionService
+- [x] AttendanceService: auto masuk/keluar recording from card taps
+- [x] Student management: bulk push to Hikvision, CSV card import (file_picker)
+- [x] Absensi screen: webview (webview_windows), no URL bar, loads frontendUrl/beranda
+- [x] Dashboard: live tap events, Hikvision connection status
+- [x] Settings: Hikvision + server config + connection test
+
+### Pending
+- [ ] **WebSocket sync**: `ws_sync.dart` + `sync_service.dart` — send unpublished tap_records to `/api/desktop/ws`
+- [ ] **Student sync from server**: on startup call `ApiClient.fetchStudents()` and upsert into local DB
+- [ ] **Windows auto-start**: Task Scheduler or startup shortcut
+- [ ] **Izin flow**: UI for recording `izin` event type with keterangan (currently only masuk/keluar auto-detected)
 
 ---
 
-## Existing Backend Models (Reference)
+## Part 8: Backend Models (Reference)
 
 ### Absensi (absensi table)
 - `absensi_id` UUID PK
@@ -271,4 +315,4 @@ The stream returns `multipart/mixed` with boundary. Each part contains:
 - `nis` String(50) unique nullable
 - `nama_lengkap` String(225)
 - `kelas_jurusan` String(100) nullable
-- Note: `card_no` mapping lives in desktop app's local SQLite, not on the server
+- Note: card_no mapping lives in desktop SQLite (`students.cardNo`), not on server

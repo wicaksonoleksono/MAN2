@@ -48,6 +48,10 @@ class AppDatabase extends _$AppDatabase {
         ..where((s) => s.userId.equals(userId)))
       .getSingleOrNull();
 
+  Future<Student?> getStudentByNis(String nis) => (select(students)
+        ..where((s) => s.nis.equals(nis)))
+      .getSingleOrNull();
+
   Future<void> upsertStudents(List<StudentsCompanion> rows) async {
     await batch((b) {
       for (final row in rows) {

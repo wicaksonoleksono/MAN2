@@ -23,6 +23,28 @@ class BulkPushProgress {
   });
 }
 
+class BulkCardAssignProgress {
+  final int current;
+  final int total;
+  final String currentNis;
+  final int success;
+  final int skipped;
+  final int failed;
+  final bool done;
+  final List<String> errors;
+
+  const BulkCardAssignProgress({
+    required this.current,
+    required this.total,
+    required this.currentNis,
+    required this.success,
+    required this.skipped,
+    required this.failed,
+    required this.done,
+    this.errors = const [],
+  });
+}
+
 class CardAlreadyAssignedException implements Exception {
   final String cardNo;
   final String ownerName;
@@ -121,6 +143,92 @@ class StudentService {
     }
 
     await db.removeCardFromStudent(student.userId);
+  }
+
+  /// Bulk assign cards from CSV data (list of {nis, cardNo} maps).
+  /// Yields progress per row.
+  Stream<BulkCardAssignProgress> bulkAssignCards(
+    List<Map<String, String>> rows,
+    AppConfig config,
+  ) async* {
+    final client = config.isHikvisionConfigured
+        ? IsapiClient(
+            baseUrl: config.hikvisionBaseUrl,
+            username: config.hikvisionUser,
+            password: config.hikvisionPassword,
+          )
+        : null;
+
+    int success = 0;
+    int skipped = 0;
+    int failed = 0;
+    final errors = <String>[];
+
+    for (int i = 0; i < rows.length; i++) {
+      final nis = rows[i]['nis']!;
+      final cardNo = rows[i]['cardNo']!;
+
+      yield BulkCardAssignProgress(
+        current: i + 1,
+        total: rows.length,
+        currentNis: nis,
+        success: success,
+        skipped: skipped,
+        failed: failed,
+        done: false,
+      );
+
+      try {
+        final student = await db.getStudentByNis(nis);
+        if (student == null) {
+          skipped++;
+          errors.add('NIS $nis: siswa tidak ditemukan');
+          continue;
+        }
+
+        if (student.cardNo == cardNo) {
+          skipped++;
+          continue;
+        }
+
+        // Check duplicate
+        final existing = await checkCardDuplicate(cardNo, student.userId);
+        if (existing != null) {
+          failed++;
+          errors.add('NIS $nis: kartu $cardNo sudah dipakai ${existing.nama}');
+          continue;
+        }
+
+        // Push to Hikvision
+        if (client != null) {
+          if (!student.hikRegistered) {
+            await client.upsertPerson(
+              employeeNo: student.userId,
+              name: student.nama,
+            );
+            await db.markHikRegistered(student.userId);
+          }
+          await client.upsertCard(cardNo: cardNo, employeeNo: student.userId);
+        }
+
+        await db.assignCardToStudent(student.userId, cardNo);
+        success++;
+      } catch (e) {
+        failed++;
+        errors.add('NIS $nis: $e');
+      }
+    }
+
+    yield BulkCardAssignProgress(
+      current: rows.length,
+      total: rows.length,
+      currentNis: '',
+      success: success,
+      skipped: skipped,
+      failed: failed,
+      done: true,
+      errors: errors,
+    );
   }
 
   /// Push unregistered students one-by-one, yielding progress.
