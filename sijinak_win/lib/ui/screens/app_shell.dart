@@ -1,9 +1,22 @@
+import 'dart:async';
+import 'dart:collection';
+import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/hikvision/hik_event.dart';
+import '../../data/local/database.dart';
 import '../../providers/providers.dart';
+import '../widgets/tap_popup.dart';
 import 'dashboard.dart';
 import 'students_screen.dart';
 import 'absensi_screen.dart';
+
+class _TapEntry {
+  final HikEvent event;
+  final Student student;
+  final String suggestedType;
+  _TapEntry(this.event, this.student, this.suggestedType);
+}
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -34,6 +47,9 @@ class _AppShellState extends ConsumerState<AppShell> {
   ];
 
   bool _hikStarted = false;
+  bool _popupShowing = false;
+  final Queue<_TapEntry> _queue = Queue();
+  final Set<String> _inQueue = {}; // cardNos currently queued or showing
 
   void _ensureHikvisionStarted() {
     if (_hikStarted) return;
@@ -41,19 +57,68 @@ class _AppShellState extends ConsumerState<AppShell> {
     if (config != null && config.isHikvisionConfigured) {
       ref.read(hikvisionServiceProvider).start(config);
       final attendance = ref.read(attendanceServiceProvider);
-      attendance.onTapRecorded = (record, student) {
-        // Refresh dashboard data when a tap is recorded
-        ref.invalidate(recentRecordsProvider);
-        ref.invalidate(pendingSyncCountProvider);
-      };
+      attendance.onTapDetected = _onTapDetected;
       attendance.start();
       _hikStarted = true;
     }
   }
 
+  void _onTapDetected(HikEvent event, Student student, String suggestedType) {
+    if (_inQueue.contains(student.cardNo)) return; // already queued
+    _inQueue.add(student.cardNo ?? event.cardNo);
+    _queue.add(_TapEntry(event, student, suggestedType));
+    _maybeShowNext();
+  }
+
+  void _maybeShowNext() {
+    if (_popupShowing || _queue.isEmpty) return;
+    final entry = _queue.removeFirst();
+    _showPopup(entry);
+  }
+
+  Future<void> _showPopup(_TapEntry entry) async {
+    _popupShowing = true;
+
+    final result = await showDialog<TapPopupResult>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => TapPopupDialog(
+        student: entry.student,
+        suggestedType: entry.suggestedType,
+      ),
+    );
+
+    _inQueue.remove(entry.student.cardNo ?? entry.event.cardNo);
+    _popupShowing = false;
+
+    if (result != null) {
+      await _saveRecord(entry, result);
+    }
+
+    _maybeShowNext();
+  }
+
+  Future<void> _saveRecord(_TapEntry entry, TapPopupResult result) async {
+    final db = ref.read(databaseProvider);
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final recordId = '${entry.event.cardNo}_${entry.event.serialNo}';
+
+    await db.insertTapRecord(TapRecordsCompanion(
+      id: Value(recordId),
+      cardNo: Value(entry.event.cardNo),
+      eventType: Value(result.eventType),
+      deviceTime: Value(entry.event.dateTime.millisecondsSinceEpoch ~/ 1000),
+      hikSerialNo: Value(entry.event.serialNo),
+      createdAt: Value(now),
+      reason: Value(result.reason),
+    ));
+
+    ref.invalidate(recentRecordsProvider);
+    ref.invalidate(pendingSyncCountProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Start HikvisionService + AttendanceService when config becomes available
     ref.listen(configProvider, (_, next) {
       if (_hikStarted) return;
       final config = next.valueOrNull;

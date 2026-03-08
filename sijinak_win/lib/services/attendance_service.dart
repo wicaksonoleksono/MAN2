@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:drift/drift.dart';
 import '../data/local/database.dart';
 import '../data/hikvision/hik_event.dart';
 import 'hikvision_service.dart';
@@ -13,8 +12,9 @@ class AttendanceService {
   StreamSubscription? _sub;
   bool _running = false;
 
-  /// Callback fired when a new tap record is inserted.
-  void Function(TapRecord record, Student student)? onTapRecorded;
+  /// Callback fired when a card tap is detected and the student is known.
+  /// The UI is responsible for showing the popup and saving the record.
+  void Function(HikEvent event, Student student, String suggestedType)? onTapDetected;
 
   AttendanceService({required this.db, required this.hikService});
 
@@ -51,37 +51,10 @@ class AttendanceService {
     student ??= await db.getStudentByCard(event.cardNo);
     if (student == null) return; // unknown card, ignore
 
-    // Determine masuk or keluar based on today's tap count
+    // Determine suggestion based on today's tap count
     final todayTaps = await db.getTodayRecordsForCard(event.cardNo);
-    final eventType = todayTaps.isEmpty ? 'absen_masuk' : 'absen_keluar';
+    final suggestedType = todayTaps.isEmpty ? 'absen_masuk' : 'absen_keluar';
 
-    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    final recordId = '${event.cardNo}_${event.serialNo}';
-
-    final companion = TapRecordsCompanion(
-      id: Value(recordId),
-      cardNo: Value(event.cardNo),
-      eventType: Value(eventType),
-      deviceTime: Value(event.dateTime.millisecondsSinceEpoch ~/ 1000),
-      hikSerialNo: Value(event.serialNo),
-      createdAt: Value(now),
-    );
-
-    final inserted = await db.insertTapRecord(companion);
-    if (inserted > 0) {
-      onTapRecorded?.call(
-        TapRecord(
-          id: recordId,
-          cardNo: event.cardNo,
-          eventType: eventType,
-          deviceTime: event.dateTime.millisecondsSinceEpoch ~/ 1000,
-          hikSerialNo: event.serialNo,
-          createdAt: now,
-          reason: null,
-          publishedAt: null,
-        ),
-        student,
-      );
-    }
+    onTapDetected?.call(event, student, suggestedType);
   }
 }
